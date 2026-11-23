@@ -1,0 +1,28 @@
+{
+  "sessions": [
+    {
+      "title": "DeepSeek 旧对话：产品路线",
+      "mode": "reasoner",
+      "messages": [
+        {
+          "role": "user",
+          "content": "我们准备把内部 DeepSeek 助手升级成多端产品，应该先做哪些事？"
+        },
+        {
+          "role": "assistant",
+          "content": "建议先做三件事：\n\n1. 把 Web 端做成 PWA，先解决手机和桌面的安装问题。\n2. 补齐文件导入，让用户可以把文档直接带进对话。\n3. 做 DeepSeek 历史对话导入，降低迁移成本。\n\n原生 App 可以放到验证留存之后。",
+          "reasoning_content": "用户要的是升级路径，不是功能清单。\n先判断当前阶段：内部工具，最重要的是验证使用频率。\nPWA 的投入产出比高于原生 App。\n文件和历史迁移是用户最容易感知的迁移阻力。"
+        },
+        {
+          "role": "user",
+          "content": "如果只能先做一个，选哪个？"
+        },
+        {
+          "role": "assistant",
+          "content": "先做 PWA。它同时覆盖手机、平板和桌面，而且不需要应用商店审核。等确认用户会每天打开，再考虑原生壳。",
+          "reasoning_content": "单点选择要看覆盖面和验证速度。PWA 一次投入覆盖最多设备，也最快拿到真实使用数据。"
+        }
+      ]
+    }
+  ]
+}

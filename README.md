@@ -8,8 +8,17 @@
 
 ---
 
+## 0. 演示
+
+![Dreikanterbot 演示](docs/demo/dreikanterbot-demo.gif)
+
+12 步演示：深度思考、推理进度、文件上传、官方对话导入、继续聊、设备建议与深色模式。截图在 [`docs/demo/screens/`](docs/demo/screens)，无需 API Key 的本地 mock 演示见 [`demo/README.md`](demo/README.md)。
+
+---
+
 ## 目录
 
+- [0. 演示](#0-演示)
 - [1. 功能清单](#1-功能清单)
 - [2. 系统架构](#2-系统架构)
 - [3. 目录结构](#3-目录结构)
@@ -26,6 +35,7 @@
 - [14. 扩展点](#14-扩展点)
 - [15. 已知限制](#15-已知限制)
 - [16. 上线验收清单](#16-上线验收清单)
+- [17. 许可证](#17-许可证)
 
 ---
 
@@ -153,9 +163,15 @@ dreikanterbot/
 │   ├── nginx.conf                # HTTP 站点（默认）
 │   ├── Dockerfile                # node 构建 → nginx 运行
 │   └── package.json
+├── demo/
+│   ├── mock_deepseek.py          # 本地 mock 流式模型（无需 API Key）
+│   ├── sample-brief.txt          # 演示附件
+│   ├── sample-import.json        # 演示用 DeepSeek 导出 JSON
+│   └── README.md
 ├── docs/
 │   ├── CLOUDFLARE.md             # Cloudflare 生产配置指南（约 700 行）
-│   └── DEVICES.md                # 设备建议、PWA 安装与下载包说明
+│   ├── DEVICES.md                # 设备建议、PWA 安装与下载包说明
+│   └── demo/                     # 演示 GIF 与 12 张高清截图
 ├── scripts/
 │   ├── backup.sh                 # PostgreSQL 备份 + 保留策略
 │   └── generate_icons.py         # 重新生成 PWA 图标
@@ -164,6 +180,7 @@ dreikanterbot/
 ├── docker-compose.https.yml      # 可选：源站 443 + Origin 证书
 ├── .env.example
 ├── deploy.sh
+├── LICENSE                       # MIT
 └── README.md
 ```
 
@@ -816,3 +833,11 @@ docker compose up -d
 - [ ] Cloudflare Full (strict) 生效、HSTS 只有一个头、`/api/*` 不被缓存
 - [ ] DB 备份脚本成功、恢复流程演练过
 - [ ] 服务器时间同步（NTP），否则 JWT 会异常
+
+---
+
+## 17. 许可证
+
+本项目使用 [MIT License](LICENSE)，Copyright (c) 2026 Ansel-official。
+
+你可以自由使用、修改、分发和商用，只需保留版权声明与许可证文本。项目按“现状”提供，不附带任何明示或暗示担保。
