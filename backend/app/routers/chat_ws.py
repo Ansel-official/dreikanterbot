@@ -60,7 +60,70 @@ router = APIRouter(prefix="/ws", tags=["实时对话"])
 logger = logging.getLogger(__name__)
 
 MAX_CONTENT_CHARS = 20_000
+MAX_ATTACHMENT_TOTAL_CHARS = 60_000
 LOCK_TTL_SECONDS = 1800
+VALID_MODES = {"chat", "reasoner"}
+
+
+def _normalise_attachments(raw: object) -> list[dict]:
+    if raw in (None, ""):
+        return []
+    if not isinstance(raw, list):
+        raise ValueError("attachments 必须是数组")
+    if len(raw) > settings.max_attachment_count:
+        raise ValueError(f"单条消息最多 {settings.max_attachment_count} 个附件")
+    attachments: list[dict] = []
+    total_chars = 0
+    for item in raw:
+        if not isinstance(item, dict):
+            raise ValueError("附件格式不正确")
+        name = str(item.get("name") or "附件").strip()[:200] or "附件"
+        text = str(item.get("text") or "")
+        if len(text) > settings.max_file_text_chars:
+            text = text[: settings.max_file_text_chars]
+        total_chars += len(text)
+        if total_chars > MAX_ATTACHMENT_TOTAL_CHARS:
+            raise ValueError("附件文本总长度超过限制，请减少文件")
+        try:
+            size = max(0, int(item.get("size") or 0))
+        except (TypeError, ValueError):
+            size = 0
+        mime = item.get("mime")
+        attachments.append(
+            {
+                "name": name,
+                "size": size,
+                "mime": str(mime)[:120] if mime else None,
+                "text": text,
+            }
+        )
+    return attachments
+
+
+def _prompt_content(content: str, attachments: list[dict]) -> str:
+    parts: list[str] = []
+    if content.strip():
+        parts.append(content.strip())
+    for attachment in attachments or []:
+        text = str(attachment.get("text") or "").strip()
+        name = attachment.get("name") or "附件"
+        if text:
+            parts.append(f"[附件：{name}]\n{text}")
+        else:
+            parts.append(f"[附件：{name}（二进制文件，未提取到文本）]")
+    return "\n\n".join(parts)
+
+
+def _title_for(content: str, attachments: list[dict]) -> str:
+    title = " ".join(content.split())[:30]
+    if not title and attachments:
+        title = str(attachments[0].get("name") or "附件对话")[:30]
+    return title or "新对话"
+
+
+def _normalise_mode(raw: object, default: str = "chat") -> str:
+    mode = str(raw or default)
+    return mode if mode in VALID_MODES else default
 
 
 def _origin_allowed(origin: str | None, host: str | None) -> bool:
@@ -221,13 +284,25 @@ class ChatConnection:
             return
 
         content = data.get("content")
-        if not isinstance(content, str) or not content.strip():
-            await self.send_error("消息内容不能为空")
+        if content is None:
+            content = ""
+        if not isinstance(content, str):
+            await self.send_error("消息内容格式不正确")
             return
         content = content.strip()
+        try:
+            attachments = _normalise_attachments(data.get("attachments"))
+        except ValueError as exc:
+            await self.send_error(str(exc), code="invalid_attachments")
+            return
+        if not content and not attachments:
+            await self.send_error("消息内容不能为空")
+            return
         if len(content) > MAX_CONTENT_CHARS:
             await self.send_error(f"单条消息最多 {MAX_CONTENT_CHARS} 字符", code="content_too_long")
             return
+        mode_was_explicit = data.get("mode") in VALID_MODES
+        requested_mode = _normalise_mode(data.get("mode"))
 
         session_id_raw = data.get("session_id")
         session_id: int | None = None
@@ -265,13 +340,14 @@ class ChatConnection:
 
         pool = get_pool()
         new_session_row = None
+        mode = requested_mode
         try:
             async with pool.acquire() as conn:
                 async with conn.transaction():
                     if session_id is not None:
                         session_row = await conn.fetchrow(
                             """
-                            SELECT id, title, is_deleted FROM chat_sessions
+                            SELECT id, title, mode, is_deleted FROM chat_sessions
                             WHERE id = $1 AND user_id = $2
                             FOR UPDATE
                             """,
@@ -280,17 +356,20 @@ class ChatConnection:
                         )
                         if session_row is None or session_row["is_deleted"]:
                             raise LookupError("会话不存在或已删除")
+                        if not mode_was_explicit:
+                            mode = _normalise_mode(session_row["mode"])
                     else:
-                        title = " ".join(content.split())[:30] or "新对话"
+                        title = _title_for(content, attachments)
                         new_session_row = await conn.fetchrow(
                             """
-                            INSERT INTO chat_sessions (user_id, title)
-                            VALUES ($1, $2)
+                            INSERT INTO chat_sessions (user_id, title, mode)
+                            VALUES ($1, $2, $3)
                             RETURNING *, 0::bigint AS message_count, NULL::text AS last_message,
                                       NULL::timestamptz AS last_message_at
                             """,
                             self.user.id,
                             title,
+                            mode,
                         )
                         session_id = new_session_row["id"]
                         if session_id is not None:
@@ -313,31 +392,37 @@ class ChatConnection:
                         if current in ("新对话", ""):
                             await conn.execute(
                                 "UPDATE chat_sessions SET title = $1 WHERE id = $2",
-                                (" ".join(content.split())[:30] or "新对话"),
+                                _title_for(content, attachments),
                                 session_id,
                             )
 
                     user_row = await conn.fetchrow(
                         """
-                        INSERT INTO messages (session_id, role, content, parent_id, status)
-                        VALUES ($1, 'user', $2, $3, 'complete')
+                        INSERT INTO messages
+                            (session_id, role, content, mode, attachments, parent_id, status)
+                        VALUES ($1, 'user', $2, $3, $4, $5, 'complete')
                         RETURNING *
                         """,
                         session_id,
                         content,
+                        mode,
+                        attachments,
                         last_message_id,
                     )
                     assistant_row = await conn.fetchrow(
                         """
-                        INSERT INTO messages (session_id, role, content, parent_id, status)
-                        VALUES ($1, 'assistant', '', $2, 'streaming')
+                        INSERT INTO messages
+                            (session_id, role, content, mode, parent_id, status)
+                        VALUES ($1, 'assistant', '', $2, $3, 'streaming')
                         RETURNING *
                         """,
                         session_id,
+                        mode,
                         user_row["id"],
                     )
                     await conn.execute(
-                        "UPDATE chat_sessions SET updated_at = NOW() WHERE id = $1",
+                        "UPDATE chat_sessions SET mode = $1, updated_at = NOW() WHERE id = $2",
+                        mode,
                         session_id,
                     )
         except LookupError:
@@ -370,6 +455,7 @@ class ChatConnection:
                 user_message_id=user_row["id"],
                 assistant_message_id=assistant_row["id"],
                 lock_owner=lock_owner,
+                mode=mode,
             )
         )
         self.active_task.add_done_callback(self._on_task_done)
@@ -401,22 +487,24 @@ class ChatConnection:
         user_message_id: int,
         assistant_message_id: int,
         lock_owner: str,
+        mode: str,
     ) -> None:
         pool = get_pool()
         partial = ""
+        reasoning_partial = ""
         usage: dict | None = None
         final_status = "error"
         last_persist = time.monotonic()
-
+        reasoning_finished = False
         try:
             rows = await pool.fetch(
                 """
                 SELECT * FROM (
-                    SELECT id, role, content, status FROM messages
+                    SELECT id, role, content, attachments, status FROM messages
                     WHERE session_id = $1 AND id <= $2
                       AND role IN ('user', 'assistant')
                       AND status IN ('complete', 'stopped')
-                      AND content <> ''
+                      AND (content <> '' OR attachments IS NOT NULL)
                     ORDER BY id DESC LIMIT 500
                 ) recent
                 ORDER BY id ASC
@@ -424,10 +512,46 @@ class ChatConnection:
                 session_id,
                 user_message_id,
             )
-            history = [{"role": row["role"], "content": row["content"]} for row in rows]
+            history = []
+            for row in rows:
+                prompt_content = _prompt_content(row["content"], row["attachments"] or [])
+                if prompt_content.strip():
+                    history.append({"role": row["role"], "content": prompt_content})
 
-            async for event in stream_completion(history):
+            async for event in stream_completion(history, mode=mode):
+                if event.reasoning:
+                    reasoning_partial += event.reasoning
+                    await self.send(
+                        {
+                            "type": "reasoning_delta",
+                            "message_id": assistant_message_id,
+                            "content": event.reasoning,
+                        }
+                    )
+                    now = time.monotonic()
+                    if now - last_persist >= 0.75:
+                        await pool.execute(
+                            """
+                            UPDATE messages
+                            SET content = $1, reasoning = $2
+                            WHERE id = $3 AND status = 'streaming'
+                            """,
+                            partial,
+                            reasoning_partial,
+                            assistant_message_id,
+                        )
+                        last_persist = now
                 if event.content:
+                    if reasoning_partial and not reasoning_finished:
+                        reasoning_finished = True
+                        if not self.closed:
+                            await self.send(
+                                {
+                                    "type": "reasoning_done",
+                                    "message_id": assistant_message_id,
+                                    "reasoning": reasoning_partial,
+                                }
+                            )
                     partial += event.content
                     await self.send(
                         {"type": "delta", "message_id": assistant_message_id, "content": event.content}
@@ -436,8 +560,13 @@ class ChatConnection:
                     if now - last_persist >= 0.75:
                         # 流式过程中持续落库，进程崩溃最多丢 0.75 秒文本
                         await pool.execute(
-                            "UPDATE messages SET content = $1 WHERE id = $2 AND status = 'streaming'",
+                            """
+                            UPDATE messages
+                            SET content = $1, reasoning = $2
+                            WHERE id = $3 AND status = 'streaming'
+                            """,
                             partial,
+                            reasoning_partial,
                             assistant_message_id,
                         )
                         last_persist = now
@@ -448,7 +577,7 @@ class ChatConnection:
         except asyncio.CancelledError:
             final_status = "stopped"
             saved = await self._finalize_message(
-                assistant_message_id, partial, "stopped", usage
+                assistant_message_id, partial, "stopped", usage, reasoning_partial
             )
             if saved and not self.closed:
                 await self.send(
@@ -462,7 +591,9 @@ class ChatConnection:
             raise
         except DeepSeekNotConfigured:
             final_status = "error"
-            saved = await self._finalize_message(assistant_message_id, partial, "error", None)
+            saved = await self._finalize_message(
+                assistant_message_id, partial, "error", None, reasoning_partial
+            )
             await self.send_error(
                 "服务端未配置 DEEPSEEK_API_KEY，请联系管理员",
                 code="not_configured",
@@ -474,7 +605,9 @@ class ChatConnection:
                 )
         except DeepSeekError as exc:
             final_status = "error"
-            saved = await self._finalize_message(assistant_message_id, partial, "error", None)
+            saved = await self._finalize_message(
+                assistant_message_id, partial, "error", None, reasoning_partial
+            )
             await self.send_error(exc.message, code=exc.code, message_id=assistant_message_id)
             if saved and not self.closed:
                 await self.send(
@@ -483,7 +616,9 @@ class ChatConnection:
         except Exception:  # noqa: BLE001
             logger.exception("生成回复失败 session=%s message=%s", session_id, assistant_message_id)
             final_status = "error"
-            saved = await self._finalize_message(assistant_message_id, partial, "error", None)
+            saved = await self._finalize_message(
+                assistant_message_id, partial, "error", None, reasoning_partial
+            )
             await self.send_error(
                 "AI 回复生成失败，请稍后重试", code="generation_failed", message_id=assistant_message_id
             )
@@ -495,7 +630,7 @@ class ChatConnection:
             try:
                 if final_status == "complete":
                     saved = await self._finalize_message(
-                        assistant_message_id, partial, "complete", usage
+                        assistant_message_id, partial, "complete", usage, reasoning_partial
                     )
                     if saved:
                         await pool.execute(
@@ -526,19 +661,25 @@ class ChatConnection:
                 )
 
     async def _finalize_message(
-        self, message_id: int, content: str, status: str, usage: dict | None
+        self,
+        message_id: int,
+        content: str,
+        status: str,
+        usage: dict | None,
+        reasoning: str = "",
     ) -> dict | None:
         try:
             row = await get_pool().fetchrow(
                 """
                 UPDATE messages
-                SET content = $1, status = $2, usage = $3
-                WHERE id = $4
+                SET content = $1, status = $2, usage = $3, reasoning = $4
+                WHERE id = $5
                 RETURNING *
                 """,
                 content,
                 status,
                 usage,
+                reasoning,
                 message_id,
             )
             return message_public(row) if row else None

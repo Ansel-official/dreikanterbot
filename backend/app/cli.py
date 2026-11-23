@@ -83,7 +83,7 @@ async def _create_user(username: str, password: str, role: str) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="DeepSeek Chatbot 运维 CLI")
+    parser = argparse.ArgumentParser(description="Dreikanterbot 运维 CLI")
     sub = parser.add_subparsers(dest="command", required=True)
 
     reset = sub.add_parser("reset-password", help="重置已存在用户的密码并踢出所有旧会话")

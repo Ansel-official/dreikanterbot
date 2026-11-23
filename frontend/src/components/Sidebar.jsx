@@ -19,6 +19,8 @@ export default function Sidebar({
   onRename,
   onOpenSettings,
   onOpenAdmin,
+  onOpenImport,
+  onOpenDevice,
   onLogout,
   theme,
   onToggleTheme,
@@ -62,11 +64,11 @@ export default function Sidebar({
       <div className="sidebar-top">
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">
-            <span>DS</span>
+            <span>D</span>
           </div>
           <div className="brand-text">
-            <strong>DeepSeek</strong>
-            <span>内部智能助手</span>
+            <strong>Dreikanterbot</strong>
+            <span>极简 AI 助手</span>
           </div>
         </div>
         <button className="icon-btn mobile-only" onClick={onClose} aria-label="关闭侧边栏">
@@ -158,6 +160,7 @@ export default function Sidebar({
                   ) : (
                     <div className="session-title" title={session.title}>
                       {session.title || '新对话'}
+                      {session.mode === 'reasoner' ? <span className="session-mode-tag">R1</span> : null}
                     </div>
                   )}
                   <div className="session-preview">
@@ -238,6 +241,14 @@ export default function Sidebar({
         </div>
 
         <div className="sidebar-actions">
+          <button className="side-action" onClick={onOpenImport}>
+            <Icon name="upload" size={16} />
+            继续对话
+          </button>
+          <button className="side-action" onClick={onOpenDevice}>
+            <Icon name="download" size={16} />
+            下载 App
+          </button>
           <button className="side-action" onClick={onOpenSettings}>
             <Icon name="settings" size={16} />
             设置

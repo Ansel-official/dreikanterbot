@@ -6,7 +6,7 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_SYSTEM_PROMPT = (
-    "你是公司内部部署的 DeepSeek 智能助手。请使用简体中文回答，表达准确、简洁、可执行；"
+    "你是 Dreikanterbot，一名严谨、友好的 AI 助手。请使用简体中文回答，表达准确、简洁、可执行；"
     "涉及代码时给出完整可运行的示例，并说明关键步骤。不要编造不确定的事实。"
 )
 
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     )
 
     # ---- 应用 ----
-    app_name: str = "DeepSeek Chatbot"
+    app_name: str = "Dreikanterbot"
     environment: str = "production"
     api_prefix: str = "/api"
     log_level: str = "INFO"
@@ -56,11 +56,20 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
+    deepseek_reasoner_model: str = "deepseek-reasoner"
     deepseek_max_tokens: int = 4096
+    deepseek_reasoner_max_tokens: int = 8192
     deepseek_temperature: float = 1.0
     deepseek_context_chars: int = 120_000
+    deepseek_reasoner_context_chars: int = 60_000
     deepseek_timeout_seconds: int = 120
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
+
+    # ---- 文件导入 ----
+    max_file_mb: int = 20
+    max_file_text_chars: int = 80_000
+    max_attachment_count: int = 5
+    max_import_mb: int = 20
 
     # ---- ASR ----
     asr_engine: str = "auto"  # auto / faster / openai / disabled
@@ -88,6 +97,14 @@ class Settings(BaseSettings):
     @property
     def max_audio_bytes(self) -> int:
         return self.max_audio_mb * 1024 * 1024
+
+    @property
+    def max_file_bytes(self) -> int:
+        return self.max_file_mb * 1024 * 1024
+
+    @property
+    def max_import_bytes(self) -> int:
+        return self.max_import_mb * 1024 * 1024
 
     @property
     def is_production(self) -> bool:

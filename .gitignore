@@ -38,3 +38,6 @@ certs/*.key
 .vscode/
 
 pip-*/
+
+# 本地 pnpm 安装生成的 lockfile（CI 使用 npm install）
+frontend/pnpm-lock.yaml

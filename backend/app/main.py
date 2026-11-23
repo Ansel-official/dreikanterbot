@@ -15,7 +15,7 @@ from .config import settings
 from .database import close_db, db_healthy, init_db
 from .models import HealthResponse
 from .redis_client import close_redis, init_redis, redis_healthy
-from .routers import admin, asr, auth, chat_ws, keys, sessions, usage
+from .routers import admin, asr, auth, chat_ws, files, imports, keys, sessions, usage
 from .services.asr import engine_name
 from .services.deepseek import deepseek_configured
 
@@ -36,6 +36,8 @@ TAGS_METADATA = [
     {"name": "会话", "description": "会话 CRUD、消息历史游标分页、JSON/Markdown 导出。"},
     {"name": "实时对话", "description": "WebSocket /ws/chat：鉴权、流式输出、断线续存。"},
     {"name": "语音", "description": "本地 Whisper 语音转文字（multipart 上传）。"},
+    {"name": "文件", "description": "上传 PDF/Word/Excel/PPT/代码/ZIP 并解析为模型可读文本。"},
+    {"name": "导入", "description": "导入 DeepSeek 官方/通用 JSON 对话，导入后可直接继续聊天。"},
     {"name": "API Key", "description": "为脚本/外部系统创建个人 API Key。"},
     {"name": "管理员", "description": "用户管理、系统统计、密钥审计。仅 admin 角色可用。"},
     {"name": "配额", "description": "每日配额查询与用量历史。"},
@@ -76,8 +78,8 @@ app = FastAPI(
     title=settings.app_name,
     version=__version__,
     description=(
-        "内部 DeepSeek Chatbot 后端 API。所有会话与消息持久化在 PostgreSQL，"
-        "AI 回复通过 WebSocket 流式推送。\n\n"
+        "Dreikanterbot 后端 API。所有会话与消息持久化在 PostgreSQL，"
+        "AI 回复通过 WebSocket 流式推送；支持极速/深度思考、文件解析与对话导入。\n\n"
         "认证方式：`Authorization: Bearer <JWT>` 或 `Authorization: Bearer sk-chat-...`（API Key）。"
     ),
     docs_url="/docs",
@@ -128,6 +130,8 @@ app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(sessions.router, prefix=settings.api_prefix)
 app.include_router(keys.router, prefix=settings.api_prefix)
 app.include_router(asr.router, prefix=settings.api_prefix)
+app.include_router(files.router, prefix=settings.api_prefix)
+app.include_router(imports.router, prefix=settings.api_prefix)
 app.include_router(usage.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
 app.include_router(chat_ws.router)

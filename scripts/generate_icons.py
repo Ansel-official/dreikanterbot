@@ -1,37 +1,29 @@
-"""生成 PWA 图标（可重复运行）。
+"""生成 Dreikanterbot PWA 图标（可重复运行）。
 
+设计：浅色背景 + 黑色圆角品牌块 + 白色 D + 一个蓝色小点，尽量接近 Apple 的克制风格。
 用法：python scripts/generate_icons.py
-依赖：Pillow
-输出：frontend/public/icons/{icon-192,icon-512,icon-maskable-512,apple-touch-icon}.png
 """
 from __future__ import annotations
 
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 SIZE = 1024
 OUT = Path(__file__).resolve().parent.parent / "frontend" / "public" / "icons"
 OUT.mkdir(parents=True, exist_ok=True)
+FONT_CANDIDATES = [
+    Path(r"C:\Windows\Fonts\arialbd.ttf"),
+    Path(r"C:\Windows\Fonts\segoeuib.ttf"),
+    Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+]
 
-TOP = (109, 135, 255)
-BOTTOM = (51, 76, 228)
 
-
-def _vertical_gradient(size: int) -> Image.Image:
-    image = Image.new("RGBA", (size, size))
-    pixels = image.load()
-    for y in range(size):
-        ratio = y / max(1, size - 1)
-        color = (
-            int(TOP[0] * (1 - ratio) + BOTTOM[0] * ratio),
-            int(TOP[1] * (1 - ratio) + BOTTOM[1] * ratio),
-            int(TOP[2] * (1 - ratio) + BOTTOM[2] * ratio),
-            255,
-        )
-        for x in range(size):
-            pixels[x, y] = color
-    return image
+def _font(size: int) -> ImageFont.FreeTypeFont:
+    for path in FONT_CANDIDATES:
+        if path.exists():
+            return ImageFont.truetype(str(path), size)
+    return ImageFont.load_default()
 
 
 def _rounded_mask(size: int, radius: int) -> Image.Image:
@@ -40,54 +32,41 @@ def _rounded_mask(size: int, radius: int) -> Image.Image:
     return mask
 
 
-def _star(draw: ImageDraw.ImageDraw, cx: float, cy: float, outer: float, color: tuple) -> None:
-    inner = outer * 0.24
-    points = [
-        (cx, cy - outer),
-        (cx + inner, cy - inner),
-        (cx + outer, cy),
-        (cx + inner, cy + inner),
-        (cx, cy + outer),
-        (cx - inner, cy + inner),
-        (cx - outer, cy),
-        (cx - inner, cy - inner),
-    ]
-    draw.polygon(points, fill=color)
+def render(*, rounded: bool, maskable: bool = False) -> Image.Image:
+    image = Image.new("RGBA", (SIZE, SIZE), (245, 245, 247, 255))
+    draw = ImageDraw.Draw(image)
 
-
-def render(*, rounded: bool) -> Image.Image:
-    size = SIZE
-    gradient = _vertical_gradient(size)
-
-    glow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(glow)
-    gd.ellipse([size * 0.55, -size * 0.18, size * 1.18, size * 0.42], fill=(255, 255, 255, 25))
-    gd.ellipse([-size * 0.22, size * 0.58, size * 0.46, size * 1.22], fill=(8, 16, 60, 30))
-    gradient = Image.alpha_composite(gradient, glow)
-
-    draw = ImageDraw.Draw(gradient)
-
-    # 对话气泡
-    bubble = [size * 0.17, size * 0.205, size * 0.83, size * 0.705]
-    draw.rounded_rectangle(bubble, radius=size * 0.145, fill=(255, 255, 255, 255))
-    draw.polygon(
-        [
-            (size * 0.295, size * 0.665),
-            (size * 0.435, size * 0.665),
-            (size * 0.315, size * 0.845),
-        ],
-        fill=(255, 255, 255, 255),
+    mark_ratio = 0.56 if maskable else 0.68
+    mark_size = int(SIZE * mark_ratio)
+    left = (SIZE - mark_size) // 2
+    top = (SIZE - mark_size) // 2 + (SIZE * 0.015 if maskable else 0)
+    radius = int(mark_size * 0.235)
+    draw.rounded_rectangle(
+        [left, top, left + mark_size, top + mark_size],
+        radius=radius,
+        fill=(29, 29, 31, 255),
     )
 
-    # 气泡内的品牌星芒
-    _star(draw, size * 0.5, size * 0.445, size * 0.185, (77, 107, 254, 255))
-    _star(draw, size * 0.705, size * 0.325, size * 0.055, (122, 146, 255, 255))
-    _star(draw, size * 0.31, size * 0.575, size * 0.04, (122, 146, 255, 255))
+    font = _font(int(mark_size * 0.64))
+    text = "D"
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+    text_x = left + (mark_size - text_w) / 2 - bbox[0]
+    text_y = top + (mark_size - text_h) / 2 - bbox[1] - mark_size * 0.025
+    draw.text((text_x, text_y), text, font=font, fill=(255, 255, 255, 255))
+
+    dot = int(mark_size * 0.13)
+    dot_x = left + mark_size - dot * 0.85
+    dot_y = top + mark_size - dot * 0.85
+    draw.ellipse(
+        [dot_x - dot / 2, dot_y - dot / 2, dot_x + dot / 2, dot_y + dot / 2],
+        fill=(0, 113, 227, 255),
+    )
 
     if rounded:
-        mask = _rounded_mask(size, int(size * 0.235))
-        gradient.putalpha(mask)
-    return gradient
+        image.putalpha(_rounded_mask(SIZE, int(SIZE * 0.235)))
+    return image
 
 
 def save(image: Image.Image, name: str, size: int) -> None:
@@ -97,10 +76,11 @@ def save(image: Image.Image, name: str, size: int) -> None:
 
 def main() -> None:
     rounded = render(rounded=True)
-    square = render(rounded=False)  # iOS / maskable 用满版背景
+    square = render(rounded=False)
+    maskable = render(rounded=False, maskable=True)
     save(rounded, "icon-512.png", 512)
     save(rounded, "icon-192.png", 192)
-    save(square, "icon-maskable-512.png", 512)
+    save(maskable, "icon-maskable-512.png", 512)
     save(square, "apple-touch-icon.png", 180)
 
 

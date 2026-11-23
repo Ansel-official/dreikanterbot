@@ -29,6 +29,7 @@ export default function SettingsPanel({
   theme,
   onToggleTheme,
   onSessionsChanged,
+  onOpenImport,
 }) {
   const toast = useToast()
   const { applyTokenResponse, logout } = useAuth()
@@ -169,7 +170,7 @@ export default function SettingsPanel({
     try {
       await downloadFromApi(
         `/sessions/export?format=${format}`,
-        `deepseek-chat-export.${format === 'markdown' ? 'md' : 'json'}`
+        `dreikanterbot-export.${format === 'markdown' ? 'md' : 'json'}`
       )
       toast('导出已开始下载', 'success')
     } catch (error) {
@@ -466,6 +467,22 @@ export default function SettingsPanel({
 
             {tab === 'data' ? (
               <section className="settings-section">
+                <h3 className="settings-heading">继续 DeepSeek 对话</h3>
+                <p className="settings-desc">
+                  导入 DeepSeek 官方导出的 JSON，保留原对话上下文，导入后直接接着聊。
+                </p>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    onClose?.()
+                    onOpenImport?.()
+                  }}
+                >
+                  <Icon name="upload" size={16} />
+                  导入官方对话
+                </button>
+
+                <div className="settings-divider" />
                 <h3 className="settings-heading">导出全部对话</h3>
                 <p className="settings-desc">导出文件包含所有未删除会话及消息，可用于归档或迁移。</p>
                 <div className="button-row">

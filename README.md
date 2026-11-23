@@ -1,8 +1,8 @@
-# DeepSeek Chatbot · 内部全栈 AI 助手
+# Dreikanterbot · 极简多端 AI 助手
 
-[![CI](https://github.com/Ansel-official/deepseek-chatbot/actions/workflows/ci.yml/badge.svg)](https://github.com/Ansel-official/deepseek-chatbot/actions/workflows/ci.yml)
+[![CI](https://github.com/Ansel-official/dreikanterbot/actions/workflows/ci.yml/badge.svg)](https://github.com/Ansel-official/dreikanterbot/actions/workflows/ci.yml)
 
-> 面向内部团队的 DeepSeek 对话应用：**PostgreSQL 持久化、WebSocket 流式输出、PWA 多端同步、本地 Whisper 语音输入、JWT + 角色权限、完整 REST API 与一键 Docker 部署**。
+> 面向团队的极简 AI 对话应用：**PostgreSQL 持久化、WebSocket 流式输出、PWA 多端同步、本地 Whisper 语音输入、JWT + 角色权限、完整 REST API 与一键 Docker 部署**。
 
 本项目是一套可直接部署的生产级脚手架，默认使用 DeepSeek 官方 `deepseek-chat`（128K 上下文），也可以按需替换模型或接入其他 OpenAI 兼容网关。
 
@@ -34,18 +34,23 @@
 | 模块 | 能力 |
 |---|---|
 | 对话 | WebSocket 流式输出、Markdown/表格、代码块复制、停止生成、失败重试（重新发送） |
-| 持久化 | 用户消息与 AI 占位消息同事务落库；生成中每 ~0.75 秒增量落库；断线后生成继续完成 |
+| 模式 | 极速（`deepseek-chat`）/ 深度思考（`deepseek-reasoner`）；推理内容流式展示、进度条、可折叠 |
+| 文件 | 对话中直接上传 PDF、DOCX、PPTX、XLSX、CSV、文本、代码与 ZIP；最多 5 个/条，解析为上下文 |
+| 导入 | 导入 DeepSeek 官方导出的 JSON，重建历史并直接「继续聊」；兼容常见 conversations/messages 结构 |
+| 下载 | 安装为 PWA（iPhone/iPad/Android/桌面）；GitHub Release 提供 Web 包与完整部署包 |
+| 持久化 | 用户消息、附件文本与 AI 占位消息同事务落库；生成中每 ~0.75 秒增量落库；断线后生成继续完成 |
 | 会话 | 新建、切换、重命名、软删除、回收站恢复、按更新时间排序、消息游标分页 |
-| 导出 | 单会话 / 全量导出为 JSON 或 Markdown，中文不转义 |
+| 导出 | 单会话 / 全量导出为 JSON 或 Markdown，中文不转义；JSON 保留附件与推理字段 |
 | 账号 | JWT 登录（30 天）、管理员创建账号、禁用/启用、角色调整、重置密码、修改自己的密码 |
 | 权限 | `admin` / `member` / `guest`；用户列表与账号创建仅管理员 |
 | 配额 | Redis 每日计数：guest 100 次、member 1000 次、admin 不限；聊天与 ASR 共用额度 |
-| 限流 | 登录 IP 60 次/5 分钟 + 同账号 10 次/5 分钟、ASR 20 次/分钟/IP、WS 会话生成锁、上游错误翻译 |
+| 限流 | 登录 IP 60 次/5 分钟 + 同账号 10 次/5 分钟、ASR 20 次/分钟/IP、文件 30 次/分钟/IP、导入 5 次/分钟/IP、WS 会话生成锁 |
 | 语音 | 本地 Whisper（base，中文）转写；浏览器录音、上传、自动回填输入框 |
-| PWA | manifest、Service Worker 静态缓存、离线打开界面、添加到主屏幕、响应式布局 |
+| UI | Apple 风格极简界面、SF 系统字体、浅/深色、桌面/平板/手机响应式 |
+| PWA | manifest、Service Worker 静态缓存、离线打开界面、添加到主屏幕、设备建议与安装引导 |
 | 多端 | 同一账号在电脑/平板/手机登录，全部历史从服务端读取 |
 | 对外接口 | RESTful + 自动 OpenAPI（`/docs`）、个人 API Key、管理员密钥审计 |
-| 运维 | Docker Compose 四服务、一键脚本、健康检查、PostgreSQL 备份脚本 |
+| 运维 | Docker Compose 四服务、一键脚本、健康检查、PostgreSQL 备份脚本、Release 自动打包 |
 
 ---
 
@@ -93,7 +98,7 @@
 ## 3. 目录结构
 
 ```text
-deepseek-chatbot/
+dreikanterbot/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py               # FastAPI 入口、生命周期、中间件、健康检查
@@ -110,30 +115,36 @@ deepseek-chatbot/
 │   │   │   ├── sessions.py       # 会话 CRUD、消息分页、导出
 │   │   │   ├── chat_ws.py        # WebSocket 流式对话（核心）
 │   │   │   ├── asr.py            # 语音转文字
+│   │   │   ├── files.py          # PDF/Word/Excel/PPT/代码/ZIP 解析
+│   │   │   ├── imports.py        # DeepSeek 官方对话导入
 │   │   │   ├── keys.py           # 个人 API Key
 │   │   │   ├── usage.py          # 配额查询
 │   │   │   └── admin.py          # 用户管理、统计、密钥审计
 │   │   └── services/
-│   │       ├── deepseek.py       # 上下文拼接、流式调用、错误翻译
+│   │       ├── deepseek.py       # 上下文拼接、极速/深度思考、流式推理
+│   │       ├── file_extract.py   # 文件文本提取
+│   │       ├── conversation_import.py # 官方/通用 JSON 对话解析
 │   │       ├── asr.py            # faster-whisper / openai-whisper
 │   │       ├── rate_limit.py     # 每日配额、IP 限流、JWT 黑名单、会话锁
 │   │       └── usage.py          # usage_logs 写入
 │   ├── tests/                    # pytest：单元测试 + PostgreSQL/Redis 集成测试
-│   ├── requirements-core.txt    # 不含 Whisper 的核心依赖
+│   ├── requirements-core.txt    # 不含 Whisper 的核心依赖（含文件解析）
 │   ├── requirements-asr.txt     # faster-whisper
 │   ├── requirements-dev.txt     # 核心依赖 + pytest/ruff
 │   ├── requirements.txt         # 生产镜像依赖（core + ASR）
 │   ├── pyproject.toml            # pytest / ruff 配置
 │   ├── Dockerfile
 │   └── .dockerignore
-├── .github/workflows/ci.yml      # GitHub Actions：后端测试 + 前端构建
+├── .github/workflows/
+│   ├── ci.yml                    # GitHub Actions：后端测试 + 前端构建
+│   └── release.yml               # tag 自动打包并发布 Release
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx / main.jsx
-│   │   ├── styles.css            # 深浅主题 + 响应式
+│   │   ├── styles.css            # Apple 风格 + 深浅主题 + 响应式
 │   │   ├── api/client.js         # axios、token、错误处理、下载
-│   │   ├── hooks/                # 认证、主题、WebSocket、录音
-│   │   └── components/           # 登录、侧边栏、消息、输入框、设置、管理台
+│   │   ├── hooks/                # 认证、主题、WebSocket、录音、PWA 安装
+│   │   └── components/           # 登录、侧边栏、消息、推理面板、文件/导入/设备弹窗
 │   ├── public/
 │   │   ├── manifest.webmanifest
 │   │   ├── sw.js                 # Service Worker
@@ -142,7 +153,9 @@ deepseek-chatbot/
 │   ├── nginx.conf                # HTTP 站点（默认）
 │   ├── Dockerfile                # node 构建 → nginx 运行
 │   └── package.json
-├── docs/CLOUDFLARE.md            # Cloudflare 生产配置指南（约 700 行）
+├── docs/
+│   ├── CLOUDFLARE.md             # Cloudflare 生产配置指南（约 700 行）
+│   └── DEVICES.md                # 设备建议、PWA 安装与下载包说明
 ├── scripts/
 │   ├── backup.sh                 # PostgreSQL 备份 + 保留策略
 │   └── generate_icons.py         # 重新生成 PWA 图标
@@ -168,7 +181,7 @@ deepseek-chatbot/
 ### 4.2 一键部署（推荐）
 
 ```bash
-cd deepseek-chatbot
+cd dreikanterbot
 chmod +x deploy.sh scripts/backup.sh
 ./deploy.sh
 ```
@@ -275,9 +288,16 @@ docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
 | `BOOTSTRAP_TOKEN` | 否 | — | 设置后 bootstrap 需带 `X-Bootstrap-Token` |
 | `GUEST_DAILY_LIMIT` | 否 | 100 | 访客每日 AI 调用次数 |
 | `MEMBER_DAILY_LIMIT` | 否 | 1000 | 成员每日 AI 调用次数 |
-| `DEEPSEEK_MODEL` | 否 | deepseek-chat | 模型名（官方满血版） |
-| `DEEPSEEK_MAX_TOKENS` | 否 | 4096 | 单次回复最大 token |
-| `DEEPSEEK_CONTEXT_CHARS` | 否 | 120000 | 历史裁剪字符预算（约 60–80K tokens） |
+| `DEEPSEEK_MODEL` | 否 | deepseek-chat | 极速模式模型 |
+| `DEEPSEEK_REASONER_MODEL` | 否 | deepseek-reasoner | 深度思考模式模型 |
+| `DEEPSEEK_MAX_TOKENS` | 否 | 4096 | 极速模式单次回复最大 token |
+| `DEEPSEEK_REASONER_MAX_TOKENS` | 否 | 8192 | 深度思考模式单次回复最大 token |
+| `DEEPSEEK_CONTEXT_CHARS` | 否 | 120000 | 极速模式历史裁剪字符预算 |
+| `DEEPSEEK_REASONER_CONTEXT_CHARS` | 否 | 60000 | 深度思考模式历史裁剪字符预算 |
+| `MAX_FILE_MB` | 否 | 20 | 单个上传文件上限 |
+| `MAX_FILE_TEXT_CHARS` | 否 | 80000 | 单个文件解析文本上限 |
+| `MAX_ATTACHMENT_COUNT` | 否 | 5 | 单条消息附件数上限 |
+| `MAX_IMPORT_MB` | 否 | 20 | DeepSeek 对话导入 JSON 上限 |
 | `SYSTEM_PROMPT` | 否 | 内置 | 系统提示词 |
 | `ASR_ENGINE` | 否 | auto | `auto/faster/openai/disabled` |
 | `ASR_MODEL` | 否 | base | Whisper 模型规格 |
@@ -344,6 +364,8 @@ ReDoc：`/redoc`；OpenAPI JSON：`/openapi.json`。
 | GET | `/api/sessions/{id}/export?format=json\|markdown` | 登录 | 导出单会话 |
 | GET | `/api/sessions/export?format=json\|markdown` | 登录 | 导出全部会话 |
 | POST | `/api/asr` | 登录 | 上传音频，返回 `{text, language, duration, engine, segments}` |
+| POST | `/api/files/extract` | 登录 | 上传文件，返回解析文本、截断标记与说明 |
+| POST | `/api/imports/deepseek` | 登录 | 导入 DeepSeek 官方/通用 JSON 对话，返回可继续会话 |
 | GET | `/api/usage/me` | 登录 | 今日配额 |
 | GET | `/api/usage/me/history?days=14` | 登录 | 个人用量历史 |
 | GET | `/api/keys` | 登录 | 我的 API Key 列表 |
@@ -373,12 +395,15 @@ wss://你的域名/ws/chat?token=<JWT>
 客户端 → 服务端：
 
 ```json
-{"type":"chat","session_id":123,"content":"你好","client_id":"可选幂等 id"}
+{"type":"chat","session_id":123,"content":"你好","client_id":"可选幂等 id","mode":"chat","attachments":[]}
+{"type":"chat","session_id":123,"content":"","mode":"reasoner","attachments":[{"name":"brief.pdf","size":12345,"mime":"application/pdf","text":"解析后的文本…"}]}
 {"type":"stop"}
 {"type":"ping"}
 ```
 
-`session_id` 为 `null` 时服务端自动创建会话，并通过 `session_created` 返回。
+- `session_id` 为 `null` 时服务端自动创建会话，并通过 `session_created` 返回。
+- `mode`：`chat`（极速，默认）或 `reasoner`（深度思考，DeepSeek R1）。
+- `attachments`：最多 5 个，文本总计最多 60K 字符；内容会保存到消息并拼进模型上下文。
 
 服务端 → 客户端：
 
@@ -386,11 +411,13 @@ wss://你的域名/ws/chat?token=<JWT>
 |---|---|
 | `ready` | 连接就绪，含 user、quota、model、ai_configured |
 | `quota` | 消费后的每日额度 |
-| `session_created` | 新会话已创建 |
-| `user_message` | 用户消息已落库（带 `client_id` 用于前端替换乐观消息） |
-| `assistant_start` | AI 占位消息已落库 |
-| `delta` | 流式增量 `{message_id, content}` |
-| `assistant_done` | 完成/停止/失败，携带最终消息与 usage |
+| `session_created` | 新会话已创建（含 `mode`） |
+| `user_message` | 用户消息已落库（含附件元数据；带 `client_id` 替换乐观消息） |
+| `assistant_start` | AI 占位消息已落库（含 `mode`） |
+| `reasoning_delta` | 深度思考增量 `{message_id, content}` |
+| `reasoning_done` | 思考阶段结束，携带完整 reasoning |
+| `delta` | 回答流式增量 `{message_id, content}` |
+| `assistant_done` | 完成/停止/失败，携带最终消息、reasoning 与 usage |
 | `error` | `{code, message, message_id?, quota?}` |
 | `ping` | 服务端每 20 秒心跳（客户端回 `pong`） |
 
@@ -422,6 +449,7 @@ wss://你的域名/ws/chat?token=<JWT>
 | `id` | BIGSERIAL | 主键 |
 | `user_id` | BIGINT FK | 所属用户 |
 | `title` | VARCHAR(200) | 默认“新对话”，首条消息自动命名 |
+| `mode` | VARCHAR(16) | chat / reasoner，决定后续消息使用的模型 |
 | `created_at` / `updated_at` | TIMESTAMPTZ | 侧边栏按更新时间排序 |
 | `is_deleted` | BOOLEAN | 软删除（回收站） |
 
@@ -433,6 +461,9 @@ wss://你的域名/ws/chat?token=<JWT>
 | `session_id` | BIGINT FK | 所属会话 |
 | `role` | VARCHAR(16) | user/assistant |
 | `content` | TEXT | 消息正文；流式期间持续更新 |
+| `reasoning` | TEXT | 深度思考内容；仅 reasoner 模式可能非空 |
+| `mode` | VARCHAR(16) | chat / reasoner |
+| `attachments` | JSONB | 附件元数据与解析文本；API 列表默认不返回 text |
 | `parent_id` | BIGINT FK | 用户消息指向上一条消息；AI 消息指向触发它的用户消息 |
 | `status` | VARCHAR(16) | complete/streaming/stopped/error |
 | `usage` | JSONB | DeepSeek token 用量 |
@@ -527,18 +558,46 @@ GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）会在�
 
 ## 10. PWA 与多端
 
-- `manifest.webmanifest` 提供 192/512/maskable 图标、standalone 显示模式与“新建对话”快捷方式。
+- `manifest.webmanifest` 提供 192/512/maskable 图标、standalone 显示模式、“新建对话”和“继续 DeepSeek 对话”快捷方式。
 - `public/sw.js`：
   - 预缓存应用壳与图标；
   - `/assets/*`、`/icons/*` 缓存优先；
   - 页面导航网络优先，离线回退 `index.html`；
   - `/api/*` 与 `/ws/*` **永不缓存**，避免读到旧对话。
 - 安装方式：
-  - Android Chrome：地址栏菜单 → 添加到主屏幕；
-  - iOS Safari：分享 → 添加到主屏幕；
-  - 桌面 Chrome/Edge：地址栏安装图标。
+  - Android Chrome：浏览器菜单 → 安装应用 / 添加到主屏幕；
+  - iPhone / iPad Safari：分享 → 添加到主屏幕；
+  - 桌面 Chrome/Edge：地址栏安装图标；macOS Safari：文件 → 添加到程序坞。
 - 麦克风与 Service Worker 需要 **HTTPS**（localhost 除外）。
 - 同一账号在任意设备登录后，会话列表与消息均从服务端读取；删除/重命名也会同步。
+- 应用内 **下载与设备** 面板会自动识别当前设备并给出安装建议。
+
+### 10.1 直接下载包体
+
+每次推送 `v*` 标签，Release 工作流会生成：
+
+| 包体 | 内容 | 适合 |
+|---|---|---|
+| `dreikanterbot-web-<版本>.zip` | 已构建的 `dist/` | 部署到同源 HTTPS 静态站点，或做二次分发 |
+| `dreikanterbot-deploy-<版本>.zip` | 完整源码 + Compose + Nginx/Cloudflare 文档 | 部署到自己的服务器 |
+
+下载页：<https://github.com/Ansel-official/dreikanterbot/releases>
+
+### 10.2 设备建议
+
+完整矩阵（推荐机型、浏览器版本、服务端规格、网络要求、能力边界）见
+**[docs/DEVICES.md](docs/DEVICES.md)**。简要建议：
+
+| 设备 | 推荐 | 浏览器 |
+|---|---|---|
+| iPhone | iPhone 12+ / iOS 16.4+ | Safari 17+ |
+| iPad | iPadOS 16.4+，横屏更佳 | Safari 17+ |
+| Android | 4GB RAM / Android 10+ | Chrome 120+ |
+| Windows | 8GB RAM / Win10+ | Edge 120+ / Chrome 120+ |
+| macOS | macOS 13+ | Safari 17+ / Chrome |
+| 服务端 | 2 vCPU / 4GB（不含语音）；4 vCPU / 8GB（含 Whisper） | Docker Compose |
+
+> PWA 是当前默认的“安装包”：无需应用商店，iPhone/iPad/Android/桌面都能获得独立图标和全屏体验。原生 APK/IPA/EXE 需要平台签名证书，当前 Release 提供 Web 与部署包。
 
 ---
 
@@ -625,7 +684,7 @@ BACKUP_DIR=/data/backups RETENTION_DAYS=30 ./scripts/backup.sh
 定时任务示例：
 
 ```cron
-0 3 * * * cd /opt/deepseek-chatbot && ./scripts/backup.sh >> backups/backup.log 2>&1
+0 3 * * * cd /opt/dreikanterbot && ./scripts/backup.sh >> backups/backup.log 2>&1
 ```
 
 恢复（会 DROP 并重建对象，务必先停后端）：
@@ -724,10 +783,13 @@ docker compose up -d
 2. **进程崩溃保护窗口**：助手内容每 ~0.75 秒增量写入，强制杀进程最多丢失不足 1 秒的文本；完成/停止/出错时立即写最终状态。
 3. **JWT 无 refresh token**：30 天内有效；登出会黑名单当前 token，改密/重置密码/禁用会通过 `token_version` 让该用户所有旧 token 失效。
 4. **Whisper CPU 推理**：base 模型在 2–4 vCPU 上单路转写约需数秒；首次请求会下载模型。长音频受 `MAX_AUDIO_MB=20` 限制。
-5. **上下文裁剪**：默认保留最近 500 条消息、最多 12 万字符；超长对话早期内容不会进入模型上下文（但数据库仍完整保存）。
+5. **上下文裁剪**：极速模式默认最多 12 万字符，深度思考模式 6 万字符；超长对话早期内容不会进入模型上下文（但数据库仍完整保存）。
 6. **回收站无自动清理**：软删除会话永久保留，需要时手动写 SQL/管理脚本清理。
 7. **PWA 离线能力**：离线只能打开界面与缓存静态资源；新消息必须联网。Service Worker 不会缓存 API。
 8. **Cloudflare 免费版限速有限**：边缘规则能力随套餐变化，账号级额度以 Redis 为准。
+9. **文件识别边界**：图片仅记录文件信息，当前文本模型不做视觉识别；扫描版 PDF 若没有文本层，需要先 OCR 再上传。
+10. **官方导出格式会变化**：导入器按常见 JSON 字段做宽松解析；DeepSeek 若调整导出结构，需要扩展 `conversation_import.py`。
+11. **没有原生安装包**：Release 提供 Web 包和部署包；APK/IPA/EXE 需要平台签名证书，当前以 PWA 安装为主。
 
 ---
 
@@ -737,12 +799,17 @@ docker compose up -d
 - [ ] `curl -fsS https://域名/api/health` 返回 `status: ok`
 - [ ] 管理员登录成功，创建 member 账号并能登录
 - [ ] 发送消息：用户气泡立即出现、AI 逐字输出、刷新页面后历史完整
+- [ ] 切换“深度思考”模式：能看到推理进度条与展开/折叠的思考内容
+- [ ] 上传 PDF/Word/Excel/代码文件：解析成功，模型能引用附件内容
+- [ ] 导入 DeepSeek 官方 JSON：历史重建成功，点“继续聊”能继续上下文
 - [ ] 生成中刷新/切网：重连后消息从服务端恢复，无重复
 - [ ] 另一台设备登录同一账号，能看到同一会话
 - [ ] 新建/重命名/删除/回收站恢复均正常
 - [ ] 导出 JSON 与 Markdown 可用且中文正常
 - [ ] 语音输入授权麦克风 → 识别 → 回填输入框（HTTPS 下）
 - [ ] PWA 可“添加到主屏幕”，断网后仍能打开壳
+- [ ] 下载与设备面板能识别当前设备，Release 包可下载
+- [ ] 手机 Safari/Chrome 布局正常，输入框、发送按钮、侧边栏可用
 - [ ] 管理员可创建用户、禁用用户、重置密码；非管理员访问 `/api/admin/*` 返回 403
 - [ ] guest/member 配额按日生效（可临时把限额调小验证）
 - [ ] `/docs` 可访问（建议 Cloudflare 限制办公网）

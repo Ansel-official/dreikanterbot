@@ -75,15 +75,17 @@ async def create_session(
     user: CurrentUser = Depends(get_current_user),
 ) -> dict:
     title = (payload.title.strip() if payload and payload.title else "") or "新对话"
+    mode = payload.mode if payload else "chat"
     row = await get_pool().fetchrow(
         """
-        INSERT INTO chat_sessions (user_id, title)
-        VALUES ($1, $2)
+        INSERT INTO chat_sessions (user_id, title, mode)
+        VALUES ($1, $2, $3)
         RETURNING *, 0::bigint AS message_count, NULL::text AS last_message,
                   NULL::timestamptz AS last_message_at
         """,
         user.id,
         title[:200],
+        mode,
     )
     return session_public(row)
 
@@ -113,7 +115,9 @@ async def export_all_sessions(
     )
     grouped: dict[int, list] = {}
     for message in messages:
-        grouped.setdefault(message["session_id"], []).append(message_public(message))
+        grouped.setdefault(message["session_id"], []).append(
+            message_public(message, include_attachment_text=True)
+        )
 
     payload = []
     for session in sessions:
@@ -138,13 +142,13 @@ async def export_all_sessions(
             content=body,
             media_type="application/json",
             headers={
-                "Content-Disposition": f'attachment; filename="deepseek-chat-export-{today}.json"',
+                "Content-Disposition": f'attachment; filename="dreikanterbot-export-{today}.json"',
                 "X-Content-Type-Options": "nosniff",
             },
         )
 
     lines = [
-        "# DeepSeek Chat 全量导出",
+        "# Dreikanterbot 全量导出",
         "",
         f"- 用户：{user.username}",
         f"- 导出时间：{datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')}",
@@ -162,13 +166,20 @@ async def export_all_sessions(
         )
         for message in item["messages"]:
             role = "用户" if message["role"] == "user" else "助手"
-            lines.extend([f"### {role} · {message['created_at']}", "", message["content"], ""])
+            lines.extend([f"### {role} · {message['created_at']}", ""])
+            if message.get("reasoning"):
+                lines.extend(["> 深度思考：", "", f"> {message['reasoning']}", ""])
+            for attachment in message.get("attachments", []):
+                lines.append(f"附件：{attachment.get('name', '附件')}")
+                if attachment.get("text"):
+                    lines.extend(["", attachment["text"], ""])
+            lines.extend([message["content"], ""])
         lines.extend(["---", ""])
     return Response(
         content="\n".join(lines),
         media_type="text/markdown",
         headers={
-            "Content-Disposition": f'attachment; filename="deepseek-chat-export-{today}.md"',
+            "Content-Disposition": f'attachment; filename="dreikanterbot-export-{today}.md"',
             "X-Content-Type-Options": "nosniff",
         },
     )
@@ -274,7 +285,7 @@ async def export_session(
         "SELECT * FROM messages WHERE session_id = $1 ORDER BY id ASC",
         session_id,
     )
-    items = [message_public(row) for row in messages]
+    items = [message_public(row, include_attachment_text=True) for row in messages]
     conversation = {
         "exported_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "session": {
@@ -285,7 +296,7 @@ async def export_session(
         },
         "messages": items,
     }
-    filename_base = f"deepseek-session-{session_id}"
+    filename_base = f"dreikanterbot-session-{session_id}"
 
     if format == "json":
         return Response(
@@ -309,7 +320,14 @@ async def export_session(
     ]
     for message in items:
         role = "用户" if message["role"] == "user" else "助手"
-        lines.extend([f"## {role}", "", f"*{message['created_at']}*", "", message["content"], "", "---", ""])
+        lines.extend([f"## {role}", "", f"*{message['created_at']}*", ""])
+        if message.get("reasoning"):
+            lines.extend(["> 深度思考：", "", f"> {message['reasoning']}", ""])
+        for attachment in message.get("attachments", []):
+            lines.append(f"附件：{attachment.get('name', '附件')}")
+            if attachment.get("text"):
+                lines.extend(["", attachment["text"], ""])
+        lines.extend([message["content"], "", "---", ""])
     return Response(
         content="\n".join(lines),
         media_type="text/markdown",

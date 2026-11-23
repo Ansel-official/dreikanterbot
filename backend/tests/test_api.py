@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import uuid
 
@@ -102,8 +103,9 @@ def test_websocket_chat_persists_and_exports(
     assert create.status_code == 201, create.text
     session_id = create.json()["id"]
 
-    async def fake_stream(history):
+    async def fake_stream(history, *, mode="chat"):
         assert history[-1]["role"] == "user"
+        assert mode == "chat"
         yield StreamEvent(content="**你好**，")
         yield StreamEvent(content="这是集成测试回复。")
         yield StreamEvent(
@@ -192,3 +194,119 @@ def test_api_key_lifecycle(client: TestClient, member_headers: dict) -> None:
     assert revoked.status_code == 200
     after = client.get("/api/auth/me", headers={"Authorization": f"Bearer {payload['key']}"})
     assert after.status_code == 401
+
+
+def test_reasoner_progress_with_file_attachment(
+    client: TestClient, member_headers: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    created = client.post("/api/sessions", headers=member_headers, json={"mode": "reasoner"})
+    assert created.status_code == 201, created.text
+    session_id = created.json()["id"]
+    assert created.json()["mode"] == "reasoner"
+
+    extracted = client.post(
+        "/api/files/extract",
+        headers=member_headers,
+        files={"file": ("brief.txt", "项目代号 Dreikanter\n预算 42 万".encode(), "text/plain")},
+    )
+    assert extracted.status_code == 200, extracted.text
+    file_text = extracted.json()["text"]
+    assert "Dreikanter" in file_text
+
+    async def fake_stream(history, *, mode="chat"):
+        assert mode == "reasoner"
+        assert "[附件：brief.txt]" in history[-1]["content"]
+        assert "预算 42 万" in history[-1]["content"]
+        yield StreamEvent(reasoning="先确认项目代号。")
+        yield StreamEvent(reasoning="再核对预算。")
+        yield StreamEvent(content="项目代号是 Dreikanter，预算 42 万。")
+        yield StreamEvent(usage={"prompt_tokens": 20, "completion_tokens": 12, "total_tokens": 32})
+
+    monkeypatch.setattr(chat_ws, "stream_completion", fake_stream)
+    token = member_headers["Authorization"].split(" ", 1)[1]
+    events: list[dict] = []
+    with client.websocket_connect(f"/ws/chat?token={token}") as websocket:
+        assert websocket.receive_json()["type"] == "ready"
+        websocket.send_json(
+            {
+                "type": "chat",
+                "session_id": session_id,
+                "content": "",
+                "mode": "reasoner",
+                "client_id": "pytest-reasoner",
+                "attachments": [
+                    {
+                        "name": "brief.txt",
+                        "size": len(file_text.encode()),
+                        "mime": "text/plain",
+                        "text": file_text,
+                    }
+                ],
+            }
+        )
+        while True:
+            event = websocket.receive_json()
+            events.append(event)
+            if event["type"] == "assistant_done":
+                break
+            if event["type"] == "error":
+                pytest.fail(f"WebSocket 返回错误：{event}")
+
+    reasoning = "".join(e["content"] for e in events if e["type"] == "reasoning_delta")
+    assert reasoning == "先确认项目代号。再核对预算。"
+    assert any(e["type"] == "reasoning_done" for e in events)
+    done = events[-1]
+    assert done["status"] == "complete"
+    assert done["message"]["reasoning"] == reasoning
+    assert done["message"]["mode"] == "reasoner"
+
+    history = client.get(f"/api/sessions/{session_id}/messages", headers=member_headers)
+    assert history.status_code == 200
+    items = history.json()["items"]
+    user_message = next(item for item in items if item["role"] == "user")
+    assistant_message = next(item for item in items if item["role"] == "assistant")
+    assert user_message["attachments"][0]["name"] == "brief.txt"
+    assert assistant_message["reasoning"] == reasoning
+
+
+def test_import_deepseek_conversation(client: TestClient, member_headers: dict) -> None:
+    payload = {
+        "conversations": [
+            {
+                "title": "导入的官方对话",
+                "messages": [
+                    {"role": "user", "content": "第一个问题"},
+                    {
+                        "role": "assistant",
+                        "content": "第一个回答",
+                        "reasoning_content": "这是思考过程",
+                    },
+                ],
+            }
+        ]
+    }
+    imported = client.post(
+        "/api/imports/deepseek",
+        headers=member_headers,
+        files={
+            "file": (
+                "deepseek-export.json",
+                json.dumps(payload, ensure_ascii=False).encode(),
+                "application/json",
+            )
+        },
+    )
+    assert imported.status_code == 200, imported.text
+    data = imported.json()
+    assert data["imported_sessions"] == 1
+    assert data["imported_messages"] == 2
+    assert data["continue_session_id"] in data["session_ids"]
+
+    messages = client.get(
+        f"/api/sessions/{data['continue_session_id']}/messages", headers=member_headers
+    )
+    assert messages.status_code == 200
+    items = messages.json()["items"]
+    assert [item["content"] for item in items] == ["第一个问题", "第一个回答"]
+    assert items[1]["reasoning"] == "这是思考过程"
+    assert items[1]["mode"] == "reasoner"

@@ -1,4 +1,4 @@
-name: deepseek-chatbot
+name: dreikanterbot
 
 x-logging: &default-logging
   driver: json-file
@@ -98,6 +98,7 @@ services:
       - chatnet
 
 volumes:
+  # 保留旧名称，升级到 Dreikanterbot 时不会丢失已有对话数据。
   postgres_data:
     name: deepseek_chatbot_postgres_data
   redis_data:

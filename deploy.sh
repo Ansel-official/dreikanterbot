@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# DeepSeek Chatbot 一键部署脚本（Linux / macOS / WSL）
+# Dreikanterbot 一键部署脚本（Linux / macOS / WSL）
 #
 # 用法：
 #   ./deploy.sh              # 构建并启动（首次会引导填写 API Key / 生成管理员）
@@ -25,7 +25,7 @@ die() { printf "${RED}[error]${RESET} %s\n" "$*" >&2; exit 1; }
 
 usage() {
   cat <<'EOF'
-DeepSeek Chatbot 一键部署
+Dreikanterbot 一键部署
 
 用法：
   ./deploy.sh              构建镜像并启动全部服务
@@ -233,7 +233,7 @@ if [[ -n "${PUBLIC_URL:-}" ]]; then
 fi
 
 printf "\n${BOLD}============================================================${RESET}\n"
-printf "${BOLD} DeepSeek Chatbot 部署完成${RESET}\n"
+printf "${BOLD} Dreikanterbot 部署完成${RESET}\n"
 printf "${BOLD}============================================================${RESET}\n"
 printf "  访问地址     : %s\n" "$host_display"
 printf "  API 文档     : %s/docs\n" "$host_display"

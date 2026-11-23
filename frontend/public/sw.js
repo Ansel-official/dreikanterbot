@@ -1,11 +1,11 @@
-/* DeepSeek 内部助手 Service Worker
+/* Dreikanterbot Service Worker
  * 目标：弱网/离线也能打开界面。
  * - 应用壳（index.html / manifest / 图标）预缓存
  * - 带 hash 的 /assets/* 与 /icons/* 缓存优先
  * - 页面导航网络优先，失败回退缓存
  * - /api/* 与 /ws/* 永不缓存（会话数据必须实时）
  */
-const VERSION = 'v1.0.0'
+const VERSION = 'v2.0.0'
 const STATIC_CACHE = `dc-static-${VERSION}`
 const RUNTIME_CACHE = `dc-runtime-${VERSION}`
 const APP_SHELL = [
@@ -15,6 +15,7 @@ const APP_SHELL = [
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/favicon.svg',
+  '/icons/apple-touch-icon.png',
 ]
 
 self.addEventListener('install', (event) => {

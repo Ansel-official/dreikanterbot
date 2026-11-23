@@ -1,12 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DeepSeek 内部助手">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#6d87ff"/>
-      <stop offset="1" stop-color="#334ce4"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
-  <rect x="11" y="13" width="42" height="32" rx="9" fill="#ffffff"/>
-  <path d="M19 42h9l-8 10z" fill="#ffffff"/>
-  <path d="M32 21.5l2.1 6.4 6.4 2.1-6.4 2.1-2.1 6.4-2.1-6.4-6.4-2.1 6.4-2.1z" fill="#4d6bfe"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Dreikanterbot">
+  <rect width="64" height="64" rx="14" fill="#f5f5f7"/>
+  <rect x="10" y="9" width="44" height="44" rx="11" fill="#1d1d1f"/>
+  <text x="32" y="40" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="700" fill="#ffffff">D</text>
+  <circle cx="48" cy="47" r="5" fill="#0071e3"/>
 </svg>

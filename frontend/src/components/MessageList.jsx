@@ -25,15 +25,16 @@ const SUGGESTIONS = [
   },
 ]
 
-function Welcome({ username, onSuggestion }) {
+function Welcome({ username, onSuggestion, onImport, onDevice }) {
   return (
     <div className="welcome">
       <div className="brand-mark welcome-mark" aria-hidden="true">
-        <span>DS</span>
+        <span>D</span>
       </div>
-      <h2>{username ? `${username}，你好` : '你好'}</h2>
+      <span className="welcome-eyebrow">DREIKANTERBOT</span>
+      <h2>{username ? `${username}，你好` : '你好，我是 Dreikanterbot'}</h2>
       <p className="welcome-sub">
-        我是部署在内部网络的 DeepSeek 助手。对话会实时保存，随时换设备继续。
+        极简、专注的 AI 助手。对话实时保存，换设备也能接着聊；支持深度思考、文件与官方对话导入。
       </p>
       <div className="suggestion-grid">
         {SUGGESTIONS.map((item) => (
@@ -49,6 +50,20 @@ function Welcome({ username, onSuggestion }) {
             <Icon name="chevronRight" size={15} className="suggestion-arrow" />
           </button>
         ))}
+        <button className="suggestion-card suggestion-import" onClick={onImport}>
+          <span className="suggestion-icon">
+            <Icon name="upload" size={18} />
+          </span>
+          <span>继续 DeepSeek 对话</span>
+          <Icon name="chevronRight" size={15} className="suggestion-arrow" />
+        </button>
+        <button className="suggestion-card" onClick={onDevice}>
+          <span className="suggestion-icon">
+            <Icon name="download" size={18} />
+          </span>
+          <span>下载与设备建议</span>
+          <Icon name="chevronRight" size={15} className="suggestion-arrow" />
+        </button>
       </div>
     </div>
   )
@@ -81,12 +96,17 @@ export default function MessageList({
   streaming,
   username,
   onSuggestion,
+  onImport,
+  onDevice,
 }) {
   const scrollRef = useRef(null)
   const endRef = useRef(null)
   const nearBottomRef = useRef(true)
   const lastContentLength = messages.length
     ? (messages[messages.length - 1]?.content || '').length
+    : 0
+  const lastReasoningLength = messages.length
+    ? (messages[messages.length - 1]?.reasoning || '').length
     : 0
 
   const scrollToBottom = (smooth = false) => {
@@ -99,7 +119,7 @@ export default function MessageList({
 
   useEffect(() => {
     if (streaming && nearBottomRef.current) scrollToBottom(false)
-  }, [lastContentLength, streaming])
+  }, [lastContentLength, lastReasoningLength, streaming])
 
   const handleScroll = () => {
     const element = scrollRef.current
@@ -114,7 +134,7 @@ export default function MessageList({
         {loading ? (
           <Skeleton />
         ) : messages.length === 0 ? (
-          <Welcome username={username} onSuggestion={onSuggestion} />
+          <Welcome username={username} onSuggestion={onSuggestion} onImport={onImport} onDevice={onDevice} />
         ) : (
           <>
             {hasMore ? (

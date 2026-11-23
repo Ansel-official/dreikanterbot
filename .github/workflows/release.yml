@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Build downloadable packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Create web and deployment packages
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          WEB_ZIP="dreikanterbot-web-${TAG}.zip"
+          DEPLOY_ZIP="dreikanterbot-deploy-${TAG}.zip"
+          printf '%s\n' \
+            "Dreikanterbot Web 包" \
+            "" \
+            "1. 把 dist/ 目录部署到与 /api、/ws 同源的 HTTPS 静态站点。" \
+            "2. 后端需按 README 启动，并把 /api 与 /ws 反代到 FastAPI。" \
+            "3. 在手机 Safari/Chrome 中打开站点，可添加到主屏幕作为 PWA 使用。" \
+            > frontend/WEB-README.txt
+          (
+            cd frontend
+            zip -qr "../${WEB_ZIP}" dist WEB-README.txt
+            rm -f WEB-README.txt
+          )
+          git archive --format=zip --prefix="dreikanterbot-${TAG}/" -o "${DEPLOY_ZIP}" HEAD
+          ls -lh "${WEB_ZIP}" "${DEPLOY_ZIP}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Dreikanterbot ${{ github.ref_name }}"
+          body: |
+            ## Dreikanterbot ${{ github.ref_name }}
+
+            - `dreikanterbot-web-*.zip`：构建好的 Web 前端，可部署到任意同源 HTTPS 静态站点。
+            - `dreikanterbot-deploy-*.zip`：完整源码 + Docker Compose + Nginx/Cloudflare 部署文件。
+
+            设备建议：iPhone/iPad 用 Safari 添加到主屏幕；Android 用 Chrome 安装 PWA；
+            Windows/macOS/Linux 用 Chrome/Edge 安装为独立窗口。语音输入需要 HTTPS。
+          files: |
+            dreikanterbot-web-*.zip
+            dreikanterbot-deploy-*.zip
+          fail_on_unmatched_files: true

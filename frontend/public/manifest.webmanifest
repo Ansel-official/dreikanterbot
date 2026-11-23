@@ -1,15 +1,15 @@
 {
-  "name": "DeepSeek 内部助手",
-  "short_name": "DeepSeek",
-  "description": "内部 DeepSeek 智能助手：多端同步、历史永不丢失、支持语音输入。",
+  "name": "Dreikanterbot",
+  "short_name": "Dreikanter",
+  "description": "极简、多端同步的 AI 助手：深度思考、文件导入、语音输入与 DeepSeek 对话导入。",
   "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#f7f8fc",
-  "theme_color": "#4d6bfe",
+  "background_color": "#f5f5f7",
+  "theme_color": "#0071e3",
   "categories": ["productivity", "utilities"],
   "icons": [
     {
@@ -37,6 +37,12 @@
       "short_name": "新对话",
       "url": "/?new=1",
       "description": "打开一个新的对话"
+    },
+    {
+      "name": "继续 DeepSeek 对话",
+      "short_name": "继续对话",
+      "url": "/?import=1",
+      "description": "导入 DeepSeek 官方对话并继续聊"
     }
   ]
 }

@@ -1,7 +1,12 @@
 import { useLayoutEffect, useRef, useState } from 'react'
+import api, { errorMessage } from '../api/client'
 import Icon from './Icons'
 import { useToast } from './Toast'
 import { useMediaRecorder } from '../hooks/useMediaRecorder'
+import { makeClientId } from '../utils'
+
+const MAX_FILES = 5
+const MAX_FILE_MB = 20
 
 function formatClock(seconds) {
   const minutes = Math.floor(seconds / 60)
@@ -9,10 +14,27 @@ function formatClock(seconds) {
   return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`
 }
 
-export default function Composer({ onSend, onStop, streaming, connectionStatus, quota }) {
+function formatFileSize(bytes) {
+  if (!bytes) return '0 KB'
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`
+}
+
+export default function Composer({
+  onSend,
+  onStop,
+  streaming,
+  connectionStatus,
+  quota,
+  mode,
+  onModeChange,
+}) {
   const toast = useToast()
   const [text, setText] = useState('')
+  const [attachments, setAttachments] = useState([])
+  const [dragOver, setDragOver] = useState(false)
   const textareaRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   const { supported, recording, uploading, seconds, start, stop, cancel, maxSeconds } =
     useMediaRecorder({
@@ -32,15 +54,95 @@ export default function Composer({ onSend, onStop, streaming, connectionStatus, 
   }, [text])
 
   const connected = connectionStatus === 'connected'
-  const canSend = connected && !streaming && !recording && !uploading && text.trim().length > 0
+  const extracting = attachments.some((item) => item.loading)
+  const readyAttachments = attachments.filter((item) => !item.loading && !item.error)
+  const canSend =
+    connected &&
+    !streaming &&
+    !recording &&
+    !uploading &&
+    !extracting &&
+    (text.trim().length > 0 || readyAttachments.length > 0)
   const lowQuota = quota && quota.limit != null && quota.remaining <= 10
+
+  const uploadFile = async (file) => {
+    const id = makeClientId()
+    const item = {
+      id,
+      name: file.name || '附件',
+      size: file.size,
+      mime: file.type || null,
+      text: '',
+      text_chars: 0,
+      note: null,
+      loading: true,
+      error: false,
+    }
+    setAttachments((current) => [...current, item])
+    const form = new FormData()
+    form.append('file', file, file.name || 'attachment')
+    try {
+      const response = await api.post('/files/extract', form, { timeout: 120000 })
+      setAttachments((current) =>
+        current.map((candidate) =>
+          candidate.id === id
+            ? {
+                ...candidate,
+                ...response.data,
+                loading: false,
+                error: false,
+              }
+            : candidate
+        )
+      )
+      if (response.data.note) toast(`${file.name}：${response.data.note}`, 'info')
+    } catch (error) {
+      setAttachments((current) =>
+        current.map((candidate) =>
+          candidate.id === id ? { ...candidate, loading: false, error: true } : candidate
+        )
+      )
+      toast(errorMessage(error, `${file.name} 解析失败`), 'error')
+    }
+  }
+
+  const addFiles = (fileList) => {
+    const files = Array.from(fileList || [])
+    if (!files.length) return
+    const remaining = MAX_FILES - attachments.length
+    if (remaining <= 0) {
+      toast(`单条消息最多 ${MAX_FILES} 个文件`, 'warning')
+      return
+    }
+    files.slice(0, remaining).forEach((file) => {
+      if (file.size > MAX_FILE_MB * 1024 * 1024) {
+        toast(`${file.name} 超过 ${MAX_FILE_MB}MB，已跳过`, 'error')
+        return
+      }
+      uploadFile(file)
+    })
+    if (files.length > remaining) toast(`最多 ${MAX_FILES} 个文件，多余文件已忽略`, 'warning')
+  }
+
+  const removeAttachment = (id) => {
+    setAttachments((current) => current.filter((item) => item.id !== id))
+  }
 
   const submit = () => {
     const value = text.trim()
-    if (!value || !canSend) return
-    const result = onSend?.(value)
+    if (!canSend) return
+    const payload = readyAttachments.map((item) => ({
+      name: item.name,
+      size: item.size,
+      mime: item.mime,
+      text: item.text || '',
+      text_chars: item.text_chars || 0,
+      note: item.note || null,
+    }))
+    const result = onSend?.(value, payload)
     if (result !== false) {
       setText('')
+      setAttachments([])
       requestAnimationFrame(() => {
         const element = textareaRef.current
         if (element) {
@@ -64,8 +166,32 @@ export default function Composer({ onSend, onStop, streaming, connectionStatus, 
     else start()
   }
 
+  const handleDrop = (event) => {
+    event.preventDefault()
+    setDragOver(false)
+    if (event.dataTransfer?.files?.length) addFiles(event.dataTransfer.files)
+  }
+
+  const handlePaste = (event) => {
+    const files = event.clipboardData?.files
+    if (files?.length) {
+      event.preventDefault()
+      addFiles(files)
+    }
+  }
+
   return (
-    <div className="composer-wrap">
+    <div
+      className={`composer-wrap ${dragOver ? 'is-dragging' : ''}`}
+      onDragOver={(event) => {
+        event.preventDefault()
+        setDragOver(true)
+      }}
+      onDragLeave={(event) => {
+        if (event.currentTarget === event.target) setDragOver(false)
+      }}
+      onDrop={handleDrop}
+    >
       <div className="composer-inner">
         {!connected ? (
           <div className={`composer-notice ${connectionStatus === 'connecting' ? 'connecting' : ''}`}>
@@ -85,6 +211,63 @@ export default function Composer({ onSend, onStop, streaming, connectionStatus, 
         ) : null}
 
         <div className={`composer ${recording ? 'is-recording' : ''}`}>
+          <div className="composer-modebar">
+            <div className="mode-switch" role="group" aria-label="对话模式">
+              <button
+                type="button"
+                className={mode === 'chat' ? 'active' : ''}
+                onClick={() => onModeChange?.('chat')}
+                disabled={streaming}
+              >
+                <Icon name="zap" size={14} />
+                极速
+              </button>
+              <button
+                type="button"
+                className={mode === 'reasoner' ? 'active' : ''}
+                onClick={() => onModeChange?.('reasoner')}
+                disabled={streaming}
+              >
+                <Icon name="sparkles" size={14} />
+                深度思考
+                <span className="mode-r1">R1</span>
+              </button>
+            </div>
+            <span className="mode-hint">
+              {mode === 'reasoner' ? '会先展示推理过程，再给出答案' : '更快响应，适合日常问答'}
+            </span>
+          </div>
+
+          {attachments.length ? (
+            <div className="attachment-row">
+              {attachments.map((item) => (
+                <div
+                  className={`attachment-chip ${item.loading ? 'loading' : ''} ${item.error ? 'error' : ''}`}
+                  key={item.id}
+                  title={item.note || item.name}
+                >
+                  {item.loading ? (
+                    <span className="spinner spinner-xs" />
+                  ) : (
+                    <Icon name="fileText" size={14} />
+                  )}
+                  <span className="attachment-name">{item.name}</span>
+                  <span className="attachment-size">
+                    {item.error ? '失败' : formatFileSize(item.size)}
+                  </span>
+                  <button
+                    type="button"
+                    className="attachment-remove"
+                    onClick={() => removeAttachment(item.id)}
+                    aria-label={`移除 ${item.name}`}
+                  >
+                    <Icon name="x" size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           {uploading ? (
             <div className="transcribing">
               <span className="spinner spinner-sm" />
@@ -118,7 +301,8 @@ export default function Composer({ onSend, onStop, streaming, connectionStatus, 
               value={text}
               onChange={(event) => setText(event.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={connected ? '给 DeepSeek 发消息…' : '等待连接…'}
+              onPaste={handlePaste}
+              placeholder={connected ? '给 Dreikanterbot 发消息…' : '等待连接…'}
               rows={1}
               maxLength={20000}
               disabled={!connected || uploading}
@@ -128,36 +312,45 @@ export default function Composer({ onSend, onStop, streaming, connectionStatus, 
 
           <div className="composer-toolbar">
             <div className="composer-tools">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="file-input-hidden"
+                onChange={(event) => {
+                  addFiles(event.target.files)
+                  event.target.value = ''
+                }}
+              />
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!connected || extracting || streaming}
+                title="导入文件（文档、表格、PDF、代码、压缩包…）"
+                aria-label="导入文件"
+              >
+                <Icon name="paperclip" size={18} />
+              </button>
               <button
                 type="button"
                 className={`icon-btn mic-btn ${recording ? 'active' : ''}`}
                 onClick={toggleRecording}
                 disabled={!supported || !connected || streaming || uploading}
-                title={
-                  !supported
-                    ? '当前浏览器不支持录音'
-                    : recording
-                      ? '停止录音并转写'
-                      : '按住说话（点击开始录音）'
-                }
+                title={!supported ? '当前浏览器不支持录音' : recording ? '停止录音并转写' : '语音输入'}
                 aria-label={recording ? '停止录音' : '语音输入'}
               >
                 {uploading ? <span className="spinner spinner-sm" /> : <Icon name="mic" size={19} />}
               </button>
               <span className="composer-hint">
-                {recording ? '录音中…' : 'Enter 发送 · Shift + Enter 换行'}
+                {recording ? '录音中…' : extracting ? '正在解析文件…' : 'Enter 发送 · Shift + Enter 换行'}
               </span>
             </div>
 
             <div className="composer-actions">
               {text.length > 12000 ? <span className="char-count">{text.length}/20000</span> : null}
               {streaming ? (
-                <button
-                  type="button"
-                  className="btn btn-stop"
-                  onClick={() => onStop?.()}
-                  title="停止生成"
-                >
+                <button type="button" className="btn-stop" onClick={() => onStop?.()} title="停止生成">
                   <Icon name="stop" size={15} />
                   停止
                 </button>
@@ -176,10 +369,15 @@ export default function Composer({ onSend, onStop, streaming, connectionStatus, 
             </div>
           </div>
         </div>
-        <p className="composer-footer">
-          DeepSeek 内部助手 · 回复由 AI 生成，请注意甄别
-        </p>
+        <p className="composer-footer">Dreikanterbot · AI 生成内容可能有误，请核实重要信息</p>
       </div>
+      {dragOver ? (
+        <div className="drop-overlay">
+          <Icon name="paperclip" size={28} />
+          <strong>松手导入文件</strong>
+          <span>支持 PDF、Word、Excel、PPT、代码、文本和 ZIP</span>
+        </div>
+      ) : null}
     </div>
   )
 }

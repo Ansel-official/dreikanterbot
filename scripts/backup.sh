@@ -8,7 +8,7 @@
 #   RETENTION_DAYS=30 ./scripts/backup.sh
 #
 # 建议加入 crontab：
-#   0 3 * * * cd /opt/deepseek-chatbot && ./scripts/backup.sh >> backups/backup.log 2>&1
+#   0 3 * * * cd /opt/dreikanterbot && ./scripts/backup.sh >> backups/backup.log 2>&1
 # =============================================================================
 set -euo pipefail
 

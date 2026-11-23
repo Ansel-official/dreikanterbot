@@ -44,11 +44,11 @@ export default function LoginPage({ theme, onToggleTheme }) {
       <main className="login-card">
         <div className="login-brand">
           <div className="brand-mark" aria-hidden="true">
-            <span>DS</span>
+            <span>D</span>
           </div>
           <div>
-            <div className="login-brand-name">DeepSeek</div>
-            <div className="login-brand-sub">内部智能助手</div>
+            <div className="login-brand-name">Dreikanterbot</div>
+            <div className="login-brand-sub">极简 AI 助手</div>
           </div>
         </div>
 
@@ -114,7 +114,7 @@ export default function LoginPage({ theme, onToggleTheme }) {
       </main>
 
       <footer className="login-footer">
-        DeepSeek Chatbot · 数据存储于内部服务器 · 支持添加到主屏幕
+        Dreikanterbot · 数据存储于内部服务器 · 支持添加到主屏幕
       </footer>
     </div>
   )

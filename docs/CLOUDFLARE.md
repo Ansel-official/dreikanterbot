@@ -1,4 +1,4 @@
-# 内部 DeepSeek Chatbot：Cloudflare 生产配置指南
+# Dreikanterbot：Cloudflare 生产配置指南
 
 > 适用站点：`chat.example.com`；源站占位：`203.0.113.10`（TEST-NET-3，**不是真实 IP**）
 > 架构：React 18 PWA（Nginx） + FastAPI；Nginx 提供 `/manifest.webmanifest`、`/sw.js`、`/assets/*`，并把 `/api/`、`/ws/`、`/docs`、`/openapi.json`、`/redoc` 反代到 `backend:8000`

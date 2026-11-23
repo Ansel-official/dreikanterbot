@@ -36,20 +36,24 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     id         BIGSERIAL PRIMARY KEY,
     user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title      VARCHAR(200) NOT NULL DEFAULT '新对话',
+    mode       VARCHAR(16) NOT NULL DEFAULT 'chat',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS messages (
-    id         BIGSERIAL PRIMARY KEY,
-    session_id BIGINT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
-    role       VARCHAR(16) NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
-    content    TEXT NOT NULL DEFAULT '',
-    parent_id  BIGINT REFERENCES messages(id) ON DELETE SET NULL,
-    status     VARCHAR(16) NOT NULL DEFAULT 'complete',
-    usage      JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id          BIGSERIAL PRIMARY KEY,
+    session_id  BIGINT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    role        VARCHAR(16) NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+    content     TEXT NOT NULL DEFAULT '',
+    reasoning   TEXT NOT NULL DEFAULT '',
+    mode        VARCHAR(16) NOT NULL DEFAULT 'chat',
+    attachments JSONB,
+    parent_id   BIGINT REFERENCES messages(id) ON DELETE SET NULL,
+    status      VARCHAR(16) NOT NULL DEFAULT 'complete',
+    usage       JSONB,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS api_keys (
@@ -88,6 +92,10 @@ CREATE INDEX IF NOT EXISTS idx_users_role
 -- 兼容旧版本的平滑升级
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'complete';
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS usage JSONB;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS reasoning TEXT NOT NULL DEFAULT '';
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS mode VARCHAR(16) NOT NULL DEFAULT 'chat';
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachments JSONB;
+ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS mode VARCHAR(16) NOT NULL DEFAULT 'chat';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();

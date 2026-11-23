@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 from .security import validate_password_policy
 
 Role = Literal["admin", "member", "guest"]
+Mode = Literal["chat", "reasoner"]
 
 
 class UserOut(BaseModel):
@@ -88,6 +89,7 @@ class BootstrapRequest(BaseModel):
 
 class SessionCreate(BaseModel):
     title: str | None = Field(default=None, max_length=200)
+    mode: Mode = "chat"
 
 
 class SessionUpdate(BaseModel):
@@ -111,6 +113,14 @@ class SessionOut(BaseModel):
     last_message: str | None = None
     last_message_at: datetime | None = None
     is_deleted: bool = False
+    mode: Mode = "chat"
+
+
+class AttachmentMeta(BaseModel):
+    name: str
+    size: int = 0
+    mime: str | None = None
+    text_chars: int = 0
 
 
 class MessageOut(BaseModel):
@@ -118,6 +128,9 @@ class MessageOut(BaseModel):
     session_id: int
     role: Literal["user", "assistant", "system"]
     content: str
+    reasoning: str = ""
+    mode: Mode = "chat"
+    attachments: list[AttachmentMeta] = Field(default_factory=list)
     parent_id: int | None = None
     status: str = "complete"
     created_at: datetime
@@ -191,6 +204,24 @@ class AsrResponse(BaseModel):
     duration: float | None = None
     engine: str
     segments: list[AsrSegment] = Field(default_factory=list)
+
+
+class FileExtractResponse(BaseModel):
+    name: str
+    size: int
+    mime: str | None = None
+    text: str
+    text_chars: int
+    truncated: bool = False
+    note: str | None = None
+
+
+class ImportResponse(BaseModel):
+    imported_sessions: int
+    imported_messages: int
+    session_ids: list[int]
+    continue_session_id: int | None = None
+    skipped_messages: int = 0
 
 
 class AdminStats(BaseModel):

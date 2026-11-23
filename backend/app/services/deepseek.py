@@ -42,6 +42,7 @@ class DeepSeekError(Exception):
 @dataclass
 class StreamEvent:
     content: str = ""
+    reasoning: str = ""
     usage: dict | None = None
     finish_reason: str | None = None
 
@@ -118,44 +119,68 @@ def trim_history(history: Iterable[dict], max_chars: int) -> tuple[list[dict], i
     return merged, len(items) - len(kept)
 
 
-def build_context(history: list[dict]) -> BuiltContext:
-    trimmed, dropped = trim_history(history, settings.deepseek_context_chars)
+def model_for_mode(mode: str) -> str:
+    if mode == "reasoner":
+        return (settings.deepseek_reasoner_model or settings.deepseek_model).strip()
+    return settings.deepseek_model
+
+
+def context_chars_for_mode(mode: str) -> int:
+    if mode == "reasoner":
+        return settings.deepseek_reasoner_context_chars
+    return settings.deepseek_context_chars
+
+
+def build_context(history: list[dict], *, mode: str = "chat") -> BuiltContext:
+    trimmed, dropped = trim_history(history, context_chars_for_mode(mode))
     system = {"role": "system", "content": build_system_prompt()}
     messages = [system, *trimmed]
     chars = sum(len(m["content"]) for m in messages)
     return BuiltContext(messages=messages, trimmed=dropped, chars=chars)
 
 
-async def stream_completion(history: list[dict]) -> AsyncIterator[StreamEvent]:
+async def stream_completion(
+    history: list[dict], *, mode: str = "chat"
+) -> AsyncIterator[StreamEvent]:
     """把完整历史交给 DeepSeek，逐块 yield 文本；最后一块携带 usage。"""
     client = get_client()
-    context = build_context(history)
+    model = model_for_mode(mode)
+    context = build_context(history, mode=mode)
+    max_tokens = (
+        settings.deepseek_reasoner_max_tokens if mode == "reasoner" else settings.deepseek_max_tokens
+    )
     logger.info(
-        "调用 DeepSeek model=%s messages=%s chars=%s trimmed=%s",
-        settings.deepseek_model,
+        "调用 DeepSeek mode=%s model=%s messages=%s chars=%s trimmed=%s",
+        mode,
+        model,
         len(context.messages),
         context.chars,
         context.trimmed,
     )
     try:
-        stream = await client.chat.completions.create(
-            model=settings.deepseek_model,
-            messages=context.messages,
-            stream=True,
-            stream_options={"include_usage": True},
-            max_tokens=settings.deepseek_max_tokens,
-            temperature=settings.deepseek_temperature,
-        )
+        kwargs = {
+            "model": model,
+            "messages": context.messages,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+            "max_tokens": max_tokens,
+        }
+        # deepseek-reasoner 不支持 temperature / top_p 等采样参数
+        if mode == "chat":
+            kwargs["temperature"] = settings.deepseek_temperature
+        stream = await client.chat.completions.create(**kwargs)
         usage: dict | None = None
         finish_reason: str | None = None
         try:
             async for chunk in stream:
                 chunk_usage = getattr(chunk, "usage", None)
                 if chunk_usage is not None:
+                    details = getattr(chunk_usage, "completion_tokens_details", None)
                     usage = {
                         "prompt_tokens": int(getattr(chunk_usage, "prompt_tokens", 0) or 0),
                         "completion_tokens": int(getattr(chunk_usage, "completion_tokens", 0) or 0),
                         "total_tokens": int(getattr(chunk_usage, "total_tokens", 0) or 0),
+                        "reasoning_tokens": int(getattr(details, "reasoning_tokens", 0) or 0),
                     }
                 if not getattr(chunk, "choices", None):
                     continue
@@ -163,6 +188,9 @@ async def stream_completion(history: list[dict]) -> AsyncIterator[StreamEvent]:
                 if getattr(choice, "finish_reason", None):
                     finish_reason = choice.finish_reason
                 delta = getattr(choice, "delta", None)
+                reasoning = getattr(delta, "reasoning_content", None) if delta else None
+                if reasoning:
+                    yield StreamEvent(reasoning=reasoning)
                 content = getattr(delta, "content", None) if delta else None
                 if content:
                     yield StreamEvent(content=content)

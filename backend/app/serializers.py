@@ -30,7 +30,34 @@ def user_public(record: Any) -> dict:
     }
 
 
-def message_public(record: Any) -> dict:
+def _attachments_public(value: Any, include_text: bool = False) -> list[dict]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return []
+    if not isinstance(value, list):
+        return []
+    result = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        text = item.get("text") or ""
+        data = {
+            "name": str(item.get("name") or "附件"),
+            "size": int(item.get("size") or 0),
+            "mime": item.get("mime"),
+            "text_chars": len(str(text)),
+        }
+        if include_text and text:
+            data["text"] = str(text)
+        result.append(data)
+    return result
+
+
+def message_public(record: Any, *, include_attachment_text: bool = False) -> dict:
     data = _as_dict(record)
     usage = data.get("usage")
     if isinstance(usage, str):
@@ -43,6 +70,9 @@ def message_public(record: Any) -> dict:
         "session_id": data["session_id"],
         "role": data["role"],
         "content": data.get("content") or "",
+        "reasoning": data.get("reasoning") or "",
+        "mode": data.get("mode") or "chat",
+        "attachments": _attachments_public(data.get("attachments"), include_attachment_text),
         "parent_id": data.get("parent_id"),
         "status": data.get("status") or "complete",
         "created_at": iso(data.get("created_at")),
@@ -64,6 +94,7 @@ def session_public(record: Any) -> dict:
         "last_message": preview,
         "last_message_at": iso(data.get("last_message_at")),
         "is_deleted": bool(data.get("is_deleted", False)),
+        "mode": data.get("mode") or "chat",
     }
 
 

@@ -10,8 +10,28 @@ import Composer from './Composer'
 import ConnectionBadge from './ConnectionBadge'
 import SettingsPanel from './SettingsPanel'
 import AdminPanel from './AdminPanel'
+import ImportConversationModal from './ImportConversationModal'
+import DeviceDownloadModal from './DeviceDownloadModal'
 import ConfirmDialog from './ConfirmDialog'
 import Icon from './Icons'
+
+const MODE_KEY = 'dreikanterbot_mode'
+
+function initialMode() {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'reasoner' ? 'reasoner' : 'chat'
+  } catch {
+    return 'chat'
+  }
+}
+
+function decorateMessage(message) {
+  if (!message || message.role !== 'assistant') return message
+  return {
+    ...message,
+    reasoningLive: message.status === 'streaming' && Boolean(message.reasoning),
+  }
+}
 
 function mergeSessions(existing, incoming) {
   const map = new Map(existing.map((item) => [item.id, item]))
@@ -56,14 +76,18 @@ export default function ChatPage({ theme, onToggleTheme }) {
   const [loadingMore, setLoadingMore] = useState(false)
   const [streaming, setStreaming] = useState(false)
   const [quota, setQuota] = useState(null)
+  const [mode, setMode] = useState(initialMode)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [adminOpen, setAdminOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [deviceOpen, setDeviceOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [exporting, setExporting] = useState('')
 
   const activeSessionRef = useRef(null)
+  const sessionsRef = useRef([])
   const messagesRef = useRef([])
   const streamingRef = useRef(false)
   const pendingRef = useRef(null)
@@ -74,11 +98,31 @@ export default function ChatPage({ theme, onToggleTheme }) {
     activeSessionRef.current = activeSessionId
   }, [activeSessionId])
   useEffect(() => {
+    sessionsRef.current = sessions
+  }, [sessions])
+  useEffect(() => {
     messagesRef.current = messages
   }, [messages])
   useEffect(() => {
     streamingRef.current = streaming
   }, [streaming])
+  useEffect(() => {
+    try {
+      localStorage.setItem(MODE_KEY, mode)
+    } catch {
+      /* ignore */
+    }
+  }, [mode])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('import') === '1') {
+      setImportOpen(true)
+      params.delete('import')
+      const query = params.toString()
+      window.history.replaceState(null, '', query ? `/?${query}` : '/')
+    }
+  }, [])
 
   const activeSession = sessions.find((item) => item.id === activeSessionId)
   const title = activeSession?.title || '新对话'
@@ -133,7 +177,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
           }
         }
         pendingRef.current = null
-        setMessages(items)
+        setMessages(items.map(decorateMessage))
         setHasMore(Boolean(response.data.has_more))
         setNextBefore(response.data.next_before_id || null)
         const stillStreaming = items.some(
@@ -169,6 +213,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
           setSessions((current) => mergeSessions(current, [session]))
           setActiveSessionId(session.id)
           activeSessionRef.current = session.id
+          if (session.mode) setMode(session.mode)
           if (pendingRef.current) pendingRef.current.sessionId = session.id
           window.history.replaceState(null, '', '/')
           break
@@ -195,10 +240,44 @@ export default function ChatPage({ theme, onToggleTheme }) {
         case 'assistant_start': {
           const message = event.message
           setMessages((current) =>
-            current.some((item) => item.id === message.id) ? current : [...current, message]
+            current.some((item) => item.id === message.id)
+              ? current
+              : [...current, { ...message, reasoningLive: false }]
           )
           setStreaming(true)
           streamingRef.current = true
+          break
+        }
+        case 'reasoning_delta': {
+          setMessages((current) =>
+            current.map((item) =>
+              item.id === event.message_id
+                ? {
+                    ...item,
+                    reasoning: `${item.reasoning || ''}${event.content}`,
+                    reasoningLive: true,
+                    reasoningStartedAt: item.reasoningStartedAt || Date.now(),
+                  }
+                : item
+            )
+          )
+          break
+        }
+        case 'reasoning_done': {
+          setMessages((current) =>
+            current.map((item) =>
+              item.id === event.message_id
+                ? {
+                    ...item,
+                    reasoning: event.reasoning || item.reasoning,
+                    reasoningLive: false,
+                    reasoningElapsedMs: item.reasoningStartedAt
+                      ? Date.now() - item.reasoningStartedAt
+                      : item.reasoningElapsedMs,
+                  }
+                : item
+            )
+          )
           break
         }
         case 'delta': {
@@ -207,7 +286,12 @@ export default function ChatPage({ theme, onToggleTheme }) {
             const next = current.map((item) => {
               if (item.id !== event.message_id) return item
               found = true
-              return { ...item, content: `${item.content || ''}${event.content}`, status: 'streaming' }
+              return {
+                ...item,
+                content: `${item.content || ''}${event.content}`,
+                status: 'streaming',
+                reasoningLive: false,
+              }
             })
             if (!found) {
               next.push({
@@ -215,6 +299,8 @@ export default function ChatPage({ theme, onToggleTheme }) {
                 session_id: activeSessionRef.current,
                 role: 'assistant',
                 content: event.content,
+                reasoning: '',
+                mode,
                 status: 'streaming',
                 created_at: new Date().toISOString(),
               })
@@ -226,11 +312,18 @@ export default function ChatPage({ theme, onToggleTheme }) {
         case 'assistant_done': {
           const message = event.message
           if (message) {
-            setMessages((current) =>
-              current.some((item) => item.id === message.id)
-                ? current.map((item) => (item.id === message.id ? message : item))
-                : [...current, message]
-            )
+            setMessages((current) => {
+              const existing = current.find((item) => item.id === message.id)
+              const merged = {
+                ...message,
+                reasoningLive: false,
+                reasoningStartedAt: existing?.reasoningStartedAt,
+                reasoningElapsedMs: existing?.reasoningElapsedMs,
+              }
+              return existing
+                ? current.map((item) => (item.id === message.id ? merged : item))
+                : [...current, merged]
+            })
           }
           setStreaming(false)
           streamingRef.current = false
@@ -241,13 +334,13 @@ export default function ChatPage({ theme, onToggleTheme }) {
         case 'error': {
           if (event.quota) setQuota(event.quota)
           toast(event.message || '发生未知错误', 'error')
-          if (event.message_id) {
-            setMessages((current) =>
-              current.map((item) =>
-                item.id === event.message_id ? { ...item, status: 'error' } : item
-              )
+          setMessages((current) =>
+            current.map((item) =>
+              item.id === event.message_id
+                ? { ...item, status: 'error', reasoningLive: false }
+                : item
             )
-          }
+          )
           const pending = pendingRef.current
           if (pending && !pending.acked) {
             setMessages((current) =>
@@ -304,14 +397,27 @@ export default function ChatPage({ theme, onToggleTheme }) {
           setMessages((current) =>
             current.map((item) => {
               const server = items.find((candidate) => candidate.id === item.id)
-              if (server && (server.content || '').length > (item.content || '').length) {
-                return { ...item, content: server.content, status: server.status }
+              if (!server) return item
+              const reasoning = (server.reasoning || '').length > (item.reasoning || '').length
+                ? server.reasoning
+                : item.reasoning
+              if (
+                (server.content || '').length > (item.content || '').length ||
+                reasoning !== item.reasoning
+              ) {
+                return {
+                  ...item,
+                  content: server.content || item.content,
+                  reasoning,
+                  status: server.status,
+                  reasoningLive: Boolean(reasoning),
+                }
               }
               return item
             })
           )
         } else {
-          setMessages(items)
+          setMessages(items.map(decorateMessage))
           setHasMore(Boolean(response.data.has_more))
           setNextBefore(response.data.next_before_id || null)
           setStreaming(false)
@@ -340,6 +446,8 @@ export default function ChatPage({ theme, onToggleTheme }) {
       setSidebarOpen(false)
       setActiveSessionId(sessionId)
       activeSessionRef.current = sessionId
+      const summary = sessionsRef.current.find((item) => item.id === sessionId)
+      if (summary?.mode) setMode(summary.mode)
       setMessagesLoading(true)
       setMessages([])
       setHasMore(false)
@@ -350,7 +458,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
           params: { limit: 50 },
         })
         if (activeSessionRef.current !== sessionId) return
-        setMessages(response.data.items || [])
+        setMessages((response.data.items || []).map(decorateMessage))
         setHasMore(Boolean(response.data.has_more))
         setNextBefore(response.data.next_before_id || null)
       } catch (error) {
@@ -414,7 +522,8 @@ export default function ChatPage({ theme, onToggleTheme }) {
           if (cancelled || activeSessionRef.current !== null) return
           setActiveSessionId(target.id)
           activeSessionRef.current = target.id
-          setMessages(messagesResponse.data.items || [])
+          if (target.mode) setMode(target.mode)
+          setMessages((messagesResponse.data.items || []).map(decorateMessage))
           setHasMore(Boolean(messagesResponse.data.has_more))
           setNextBefore(messagesResponse.data.next_before_id || null)
         }
@@ -443,9 +552,9 @@ export default function ChatPage({ theme, onToggleTheme }) {
   }, [handleNewChat])
 
   const sendMessage = useCallback(
-    (raw) => {
+    (raw, attachments = []) => {
       const content = String(raw || '').trim()
-      if (!content) return false
+      if (!content && !attachments.length) return false
       if (streamingRef.current) {
         toast('上一条回复还在生成中，请稍候', 'warning')
         return false
@@ -456,10 +565,18 @@ export default function ChatPage({ theme, onToggleTheme }) {
       }
       const clientId = makeClientId()
       const tempId = `temp-${clientId}`
+      const attachmentMeta = attachments.map((item) => ({
+        name: item.name,
+        size: item.size,
+        mime: item.mime,
+        text_chars: item.text_chars || (item.text ? item.text.length : 0),
+      }))
       const optimistic = {
         id: tempId,
         role: 'user',
         content,
+        mode,
+        attachments: attachmentMeta,
         status: 'sending',
         created_at: new Date().toISOString(),
         temp: true,
@@ -480,6 +597,13 @@ export default function ChatPage({ theme, onToggleTheme }) {
         session_id: activeSessionRef.current,
         content,
         client_id: clientId,
+        mode,
+        attachments: attachments.map((item) => ({
+          name: item.name,
+          size: item.size,
+          mime: item.mime,
+          text: item.text || '',
+        })),
       })
       if (!ok) {
         setMessages((current) => current.filter((item) => item.id !== tempId))
@@ -491,7 +615,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
       }
       return true
     },
-    [send, socketStatus, toast]
+    [mode, send, socketStatus, toast]
   )
 
   const stopGeneration = useCallback(() => {
@@ -500,6 +624,37 @@ export default function ChatPage({ theme, onToggleTheme }) {
     if (!ok) toast('无法停止：实时连接已断开', 'error')
   }, [send, toast])
 
+  const changeMode = useCallback(
+    (nextMode) => {
+      if (nextMode !== 'chat' && nextMode !== 'reasoner') return
+      if (streamingRef.current) {
+        toast('请先停止当前回复，再切换模式', 'warning')
+        return
+      }
+      setMode(nextMode)
+      if (activeSessionRef.current) {
+        setSessions((current) =>
+          current.map((item) =>
+            item.id === activeSessionRef.current ? { ...item, mode: nextMode } : item
+          )
+        )
+      }
+    },
+    [toast]
+  )
+
+  const handleImported = useCallback(
+    async (sessionId) => {
+      setImportOpen(false)
+      const list = await refreshSessions(true)
+      const target = list?.find((item) => item.id === sessionId)
+      if (target?.mode) setMode(target.mode)
+      await openSession(sessionId)
+      toast('已导入 DeepSeek 对话，可以继续聊天了', 'success')
+    },
+    [openSession, refreshSessions, toast]
+  )
+
   const loadMore = async () => {
     if (!hasMore || !nextBefore || loadingMore) return
     setLoadingMore(true)
@@ -507,7 +662,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
       const response = await api.get(`/sessions/${activeSessionRef.current}/messages`, {
         params: { before_id: nextBefore, limit: 50 },
       })
-      setMessages((current) => [...(response.data.items || []), ...current])
+      setMessages((current) => [...(response.data.items || []).map(decorateMessage), ...current])
       setHasMore(Boolean(response.data.has_more))
       setNextBefore(response.data.next_before_id || null)
     } catch (error) {
@@ -559,7 +714,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
     try {
       await downloadFromApi(
         `/sessions/${activeSessionId}/export?format=${format}`,
-        `deepseek-session.${format === 'markdown' ? 'md' : 'json'}`
+        `dreikanterbot-session.${format === 'markdown' ? 'md' : 'json'}`
       )
       toast('导出已开始下载', 'success')
     } catch (error) {
@@ -593,6 +748,14 @@ export default function ChatPage({ theme, onToggleTheme }) {
         onOpenAdmin={() => {
           setSidebarOpen(false)
           setAdminOpen(true)
+        }}
+        onOpenImport={() => {
+          setSidebarOpen(false)
+          setImportOpen(true)
+        }}
+        onOpenDevice={() => {
+          setSidebarOpen(false)
+          setDeviceOpen(true)
         }}
         onLogout={logout}
         theme={theme}
@@ -628,6 +791,14 @@ export default function ChatPage({ theme, onToggleTheme }) {
           <div className="header-actions">
             <ConnectionBadge status={socketStatus} />
             <QuotaChip quota={quota} />
+            <button
+              className="icon-btn"
+              onClick={() => setImportOpen(true)}
+              title="继续 DeepSeek 对话"
+              aria-label="继续 DeepSeek 对话"
+            >
+              <Icon name="upload" size={18} />
+            </button>
             {activeSessionId ? (
               <details className="export-menu">
                 <summary className="icon-btn" title="导出当前会话" aria-label="导出当前会话">
@@ -655,6 +826,14 @@ export default function ChatPage({ theme, onToggleTheme }) {
                 </div>
               </details>
             ) : null}
+            <button
+              className="icon-btn"
+              onClick={() => setDeviceOpen(true)}
+              title="下载与设备"
+              aria-label="下载与设备"
+            >
+              <Icon name="download" size={18} />
+            </button>
             <button
               className="icon-btn"
               onClick={() => setSettingsOpen(true)}
@@ -686,6 +865,8 @@ export default function ChatPage({ theme, onToggleTheme }) {
           streaming={streaming}
           username={user?.username}
           onSuggestion={sendMessage}
+          onImport={() => setImportOpen(true)}
+          onDevice={() => setDeviceOpen(true)}
         />
 
         <Composer
@@ -694,6 +875,8 @@ export default function ChatPage({ theme, onToggleTheme }) {
           streaming={streaming}
           connectionStatus={socketStatus}
           quota={quota}
+          mode={mode}
+          onModeChange={changeMode}
         />
       </main>
 
@@ -706,6 +889,10 @@ export default function ChatPage({ theme, onToggleTheme }) {
         theme={theme}
         onToggleTheme={onToggleTheme}
         onSessionsChanged={() => refreshSessions(true)}
+        onOpenImport={() => {
+          setSettingsOpen(false)
+          setImportOpen(true)
+        }}
       />
 
       <AdminPanel
@@ -713,6 +900,14 @@ export default function ChatPage({ theme, onToggleTheme }) {
         onClose={() => setAdminOpen(false)}
         currentUser={user}
       />
+
+      <ImportConversationModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={handleImported}
+      />
+
+      <DeviceDownloadModal open={deviceOpen} onClose={() => setDeviceOpen(false)} />
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}

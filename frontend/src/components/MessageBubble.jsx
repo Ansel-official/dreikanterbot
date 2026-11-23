@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import Icon from './Icons'
@@ -11,6 +11,12 @@ function extractText(node) {
   if (Array.isArray(node)) return node.map(extractText).join('')
   if (typeof node === 'object' && node.props) return extractText(node.props.children)
   return ''
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return ''
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`
 }
 
 function CodeBlock({ children }) {
@@ -77,11 +83,78 @@ function StatusNote({ message }) {
   return null
 }
 
+function ReasoningPanel({ message, pending }) {
+  const reasoning = message.reasoning || ''
+  const live = Boolean(message.reasoningLive) || (pending && !message.content)
+  const [expanded, setExpanded] = useState(false)
+  const [progress, setProgress] = useState(live ? 8 : 100)
+
+  useEffect(() => {
+    if (!live) {
+      setProgress(100)
+      return undefined
+    }
+    setProgress((value) => Math.max(8, value))
+    const timer = setInterval(() => {
+      setProgress((value) => {
+        if (value >= 94) return 94
+        const step = Math.max(0.7, (94 - value) * 0.07)
+        return Math.min(94, value + step)
+      })
+    }, 420)
+    return () => clearInterval(timer)
+  }, [live])
+
+  useEffect(() => {
+    if (reasoning.length) {
+      setProgress((value) => {
+        const estimated = Math.min(92, 12 + Math.log2(reasoning.length + 2) * 7)
+        return Math.max(value, estimated)
+      })
+    }
+  }, [reasoning.length])
+
+  const elapsed = message.reasoningElapsedMs
+    ? `${(message.reasoningElapsedMs / 1000).toFixed(1)} 秒`
+    : message.reasoningStartedAt
+      ? `${Math.max(1, Math.round((Date.now() - message.reasoningStartedAt) / 1000))} 秒`
+      : ''
+
+  if (!reasoning && !live) return null
+
+  return (
+    <div className={`reasoning-panel ${live ? 'is-live' : 'is-done'} ${expanded ? 'expanded' : ''}`}>
+      <button
+        type="button"
+        className="reasoning-head"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+      >
+        <span className="reasoning-title">
+          <span className={`reasoning-orb ${live ? 'pulse' : ''}`}>
+            <Icon name="sparkles" size={13} />
+          </span>
+          {live ? '正在深度思考' : '已深度思考'}
+          {elapsed ? <span className="reasoning-time">{elapsed}</span> : null}
+        </span>
+        <Icon name={expanded ? 'chevronDown' : 'chevronRight'} size={15} />
+      </button>
+      <div className="reasoning-progress" aria-hidden="true">
+        <span style={{ width: `${Math.round(progress)}%` }} />
+      </div>
+      <div className={`reasoning-body ${expanded || live ? 'show' : ''}`}>
+        <pre>{reasoning || '模型正在组织推理过程…'}</pre>
+      </div>
+    </div>
+  )
+}
+
 export default function MessageBubble({ message, streaming }) {
   const toast = useToast()
   const isUser = message.role === 'user'
   const pending = message.status === 'streaming'
   const content = message.content || ''
+  const attachments = Array.isArray(message.attachments) ? message.attachments : []
   const markdown = useMemo(
     () => (
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -101,21 +174,38 @@ export default function MessageBubble({ message, streaming }) {
     <article className={`msg-row ${isUser ? 'msg-user' : 'msg-assistant'}`}>
       {!isUser ? (
         <div className="msg-avatar" aria-hidden="true">
-          <Icon name="sparkles" size={16} />
+          <span>D</span>
         </div>
       ) : null}
 
       <div className="msg-main">
         <div className="msg-head">
-          <span className="msg-author">{isUser ? '你' : 'DeepSeek'}</span>
+          <span className="msg-author">{isUser ? '你' : 'Dreikanterbot'}</span>
+          {!isUser && message.mode === 'reasoner' ? <span className="msg-mode">R1</span> : null}
           <time className="msg-time" dateTime={message.created_at || undefined}>
             {formatTime(message.created_at)}
           </time>
         </div>
 
+        {!isUser && (message.mode === 'reasoner' || message.reasoning) ? (
+          <ReasoningPanel message={message} pending={pending} />
+        ) : null}
+
         <div className={`bubble ${isUser ? 'bubble-user' : 'bubble-assistant'}`}>
+          {attachments.length ? (
+            <div className="message-attachments">
+              {attachments.map((item, index) => (
+                <div className="message-attachment" key={`${item.name}-${index}`}>
+                  <Icon name="fileText" size={14} />
+                  <span>{item.name}</span>
+                  <small>{formatFileSize(item.size)}</small>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           {isUser ? (
-            <div className="user-text">{content}</div>
+            content ? <div className="user-text">{content}</div> : null
           ) : content ? (
             <div className="markdown">{markdown}</div>
           ) : pending ? (
