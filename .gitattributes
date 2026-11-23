@@ -1,0 +1,9 @@
+# 统一使用 LF，避免 Windows checkout 把 shell 脚本 / Dockerfile 变成 CRLF。
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary

@@ -1,0 +1,42 @@
+{
+  "name": "DeepSeek 内部助手",
+  "short_name": "DeepSeek",
+  "description": "内部 DeepSeek 智能助手：多端同步、历史永不丢失、支持语音输入。",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f7f8fc",
+  "theme_color": "#4d6bfe",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "新建对话",
+      "short_name": "新对话",
+      "url": "/?new=1",
+      "description": "打开一个新的对话"
+    }
+  ]
+}

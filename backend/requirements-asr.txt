@@ -1,0 +1,3 @@
+# 本地语音转文字（OpenAI Whisper base 权重，CTranslate2 CPU int8 推理）
+# 不安装此文件时聊天/会话等核心功能仍可用，/api/asr 会返回 503。
+faster-whisper==1.1.0

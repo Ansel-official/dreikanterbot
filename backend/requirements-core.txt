@@ -1,0 +1,23 @@
+# Web 框架
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# 数据层
+asyncpg==0.30.0
+redis==5.2.1
+
+# 安全
+PyJWT==2.10.1
+bcrypt==4.2.1
+
+# DeepSeek（OpenAI 兼容 SDK）
+openai==1.59.7
+httpx==0.28.1
+
+# 配置校验
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# 时区数据（Windows / 精简版 Linux 镜像常常没有系统 zoneinfo）
+tzdata==2024.2

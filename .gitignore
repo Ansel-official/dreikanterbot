@@ -1,0 +1,40 @@
+# 环境与密钥
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.test-whisper/
+.uv-cache/
+.pgtest*/
+
+# Node / 前端构建产物
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# 运行时数据
+models/
+whisper_cache/
+backups/
+certs/*.pem
+certs/*.key
+*.log
+*.pid
+
+# 编辑器 / 系统
+.DS_Store
+.idea/
+.vscode/
+
+pip-*/
