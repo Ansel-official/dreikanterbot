@@ -25,27 +25,19 @@ const SUGGESTIONS = [
   },
 ]
 
-function Welcome({ username, onSuggestion, onImport, onDevice, onMemory, onPlugin, aiReady, onOpenAi }) {
+function Welcome({ onSuggestion, onImport, onDevice, onMemory, onPlugin, aiReady, onOpenAi }) {
   return (
     <div className="welcome">
-      <div className="welcome-topline">
-        <span className="welcome-eyebrow">DREIKANTERBOT · V3</span>
-        <span className={`welcome-status ${aiReady ? 'ok' : 'warn'}`}>
-          <span className="notice-dot" />
-          {aiReady ? '模型已接入' : '等待接入模型'}
-        </span>
-      </div>
-      <h2>{username ? `${username}，今天处理什么？` : '今天处理什么？'}</h2>
+      <h2>今天有什么可以帮到你？</h2>
       <p className="welcome-sub">
-        一个留在自己服务器上的工作台：对话、文件、记忆和常用提示词放在一起。没有模型 Key
-        时不会假装能回答。
+        DeepSeek V4 与 Kimi K3 · 1M 上下文 · 密钥只留在你的服务器
       </p>
       {!aiReady ? (
         <button className="welcome-key-callout" onClick={onOpenAi}>
           <Icon name="key" size={18} />
           <span>
             <strong>先接入模型 API Key</strong>
-            <small>支持 DeepSeek V4 与 Kimi K3；官方 1M 上下文，兼容网关最高 2M。</small>
+            <small>DeepSeek 与 Kimi 两个 Key 可同时保存；接入后即可开始。</small>
           </span>
           <Icon name="chevronRight" size={17} />
         </button>
@@ -59,28 +51,28 @@ function Welcome({ username, onSuggestion, onImport, onDevice, onMemory, onPlugi
             disabled={!aiReady}
           >
             <span className="suggestion-icon">
-              <Icon name={item.icon} size={18} />
+              <Icon name={item.icon} size={17} />
             </span>
             <span>{item.title}</span>
-            <Icon name="chevronRight" size={15} className="suggestion-arrow" />
+            <Icon name="chevronRight" size={14} className="suggestion-arrow" />
           </button>
         ))}
       </div>
       <div className="welcome-shortcuts">
         <button onClick={onMemory}>
-          <Icon name="memory" size={16} />
+          <Icon name="memory" size={15} />
           记忆库
         </button>
         <button onClick={onPlugin}>
-          <Icon name="plug" size={16} />
+          <Icon name="plug" size={15} />
           插件
         </button>
         <button onClick={onImport}>
-          <Icon name="upload" size={16} />
+          <Icon name="upload" size={15} />
           继续 DeepSeek 对话
         </button>
         <button onClick={onDevice}>
-          <Icon name="download" size={16} />
+          <Icon name="download" size={15} />
           下载与设备
         </button>
       </div>

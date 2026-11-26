@@ -828,7 +828,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
         <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
       ) : null}
 
-      <main className="chat-main">
+      <main className={`chat-main ${messages.length === 0 ? 'is-empty' : ''}`}>
         <header className="chat-header">
           <button
             className="icon-btn mobile-only"

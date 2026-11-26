@@ -1,4 +1,4 @@
-# Dreikanterbot 3.1 · 自己的模型，自己的工作台
+# Dreikanterbot 3.1.1 · 自己的模型，自己的工作台
 
 [![CI](https://github.com/Ansel-official/dreikanterbot/actions/workflows/ci.yml/badge.svg)](https://github.com/Ansel-official/dreikanterbot/actions/workflows/ci.yml)
 
@@ -13,11 +13,11 @@
 | 能力 | V3.1 |
 |---|---|
 | DeepSeek | 官方 `deepseek-flash`（V4.1 Flash，1M/384K）、`deepseek-v4-pro`（V4 Pro，1M/384K），以及 V3.1 别名与旧 V4 Flash 名 |
-| Kimi | `kimi-k2.6`、`kimi-k2.7-code`、`kimi-k2.7-code-highspeed`、`kimi-k3`、`kimi-k3.1` |
+| Kimi | `kimi-k2.6`、`kimi-k2.7-code`、`kimi-k2.7-code-highspeed`、`kimi-k3`、`kimi-k3.1-pro` |
 | 多 Provider | 同一个账号分别保存 DeepSeek / Moonshot Key；模型决定 Provider，Key 只用于对应 Provider |
 | 上下文 | 默认 1M，按 token 预算自动保留；自定义网关最高 2M；输出上限按模型收口 |
 | 界面 | 黑白蓝配色，按 DeepSeek 官方的克制、白底、蓝色主操作风格重做；桌面/平板/手机响应式 |
-| 版本 | 后端、Web、Windows EXE、Android APK 统一到 3.1.0 |
+| 版本 | 后端、Web、Windows EXE、Android APK 统一到 3.1.1；对齐 DeepSeek 官方 chat-demo 的白底蓝调、居中开场与圆角输入区 |
 
 ## V3.0 变化
 
@@ -118,7 +118,7 @@ V3 正式对话要求每个用户自己的 Key。
 | Moonshot | `kimi-k2.7-code` | 256K | 256K | 代码与长任务 |
 | Moonshot | `kimi-k2.7-code-highspeed` | 256K | 256K | 低延迟代码任务 |
 | Moonshot | `kimi-k3` | 1M | 1M | 超长材料 |
-| Moonshot | `kimi-k3.1` | 1M | 128K | K3.1 |
+| Moonshot | `kimi-k3.1-pro` | 1M | 128K | K3.1 Pro，Moonshot 当前模型 |
 
 模型 ID 与能力以官方目录为准；自定义 OpenAI 兼容网关可以在同一套模型 ID 下覆盖接口地址。
 DeepSeek 官方模型目录见 [api-docs.deepseek.com](https://api-docs.deepseek.com/zh-cn/api/list-models)。
@@ -708,8 +708,8 @@ GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）会在�
 |---|---|---|
 | `dreikanterbot-web-<版本>.zip` | 已构建的 `dist/` | 部署到同源 HTTPS 静态站点，或做二次分发 |
 | `dreikanterbot-deploy-<版本>.zip` | 完整源码 + Compose + Nginx/Cloudflare 文档 | 部署到自己的服务器 |
-| `Dreikanterbot-3.1.0-win-x64.zip` | Windows 便携 EXE（WebView2） | 双击即用，首次填服务器地址 |
-| `Dreikanterbot-3.1.0.apk` | Android WebView 客户端（测试签名） | Android 7+ 侧载安装 |
+| `Dreikanterbot-3.1.1-win-x64.zip` | Windows 便携 EXE（WebView2） | 双击即用，首次填服务器地址 |
+| `Dreikanterbot-3.1.1.apk` | Android WebView 客户端（测试签名） | Android 7+ 侧载安装 |
 
 下载页：
 
@@ -718,8 +718,8 @@ GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）会在�
 
 仓库内也放了当前版本客户端（Release 会再次附加）：
 
-- [Windows 便携版](docs/downloads/Dreikanterbot-3.1.0-win-x64.zip)
-- [Android APK](docs/downloads/Dreikanterbot-3.1.0.apk)
+- [Windows 便携版](docs/downloads/Dreikanterbot-3.1.1-win-x64.zip)
+- [Android APK](docs/downloads/Dreikanterbot-3.1.1.apk)
 - [SHA256SUMS](docs/downloads/SHA256SUMS)
 
 ### 10.2 设备建议
@@ -1011,3 +1011,6 @@ docker compose up -d
 本项目使用 [MIT License](LICENSE)，Copyright (c) 2026 Ansel-official。
 
 你可以自由使用、修改、分发和商用，只需保留版权声明与许可证文本。项目按“现状”提供，不附带任何明示或暗示担保。
+
+界面参考了 DeepSeek 官方 MIT 示例 [chat-demo](https://github.com/deepseek-ai/chat-demo)；
+我们没有复制其源码，具体边界与致谢见 [docs/CREDITS.md](docs/CREDITS.md)。

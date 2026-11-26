@@ -251,7 +251,7 @@ export default function Composer({
                 disabled={streaming}
               >
                 <Icon name="zap" size={14} />
-                极速
+                快速回答
               </button>
               <button
                 type="button"
@@ -260,14 +260,13 @@ export default function Composer({
                 disabled={streaming}
               >
                 <Icon name="brain" size={14} />
-                推理
-                <span className="mode-r1">R1</span>
+                深度思考
               </button>
             </div>
             <span className="mode-hint">
               {mode === 'reasoner'
-                ? '先列推理过程，再给结论'
-                : `${formatContextWindow(contextWindow)} 上下文 · 低延迟`}
+                ? '先推理，再给结论'
+                : `${formatContextWindow(contextWindow)} 上下文 · 快速回答`}
             </span>
           </div>
 
@@ -428,7 +427,7 @@ export default function Composer({
             </div>
           </div>
         </div>
-        <p className="composer-footer">Dreikanterbot V3.1 · 内容由模型生成，关键结论请核对</p>
+        <p className="composer-footer">Dreikanterbot V3.1.1 · 内容由模型生成，关键结论请核对</p>
       </div>
       {dragOver ? (
         <div className="drop-overlay">

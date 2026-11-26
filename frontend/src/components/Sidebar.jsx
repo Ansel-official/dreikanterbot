@@ -71,7 +71,7 @@ export default function Sidebar({
           </div>
           <div className="brand-text">
             <strong>Dreikanterbot</strong>
-            <span>私人工作台 · V3.1</span>
+            <span>私人工作台 · V3.1.1</span>
           </div>
         </div>
         <button className="icon-btn mobile-only" onClick={onClose} aria-label="关闭侧边栏">

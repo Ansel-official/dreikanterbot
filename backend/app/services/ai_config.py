@@ -131,13 +131,13 @@ MODEL_PRESETS: list[dict] = [
         "description": "Kimi K3，1M 上下文，适合超长材料。",
     },
     {
-        "id": "kimi-k3.1",
-        "label": "Kimi K3.1",
+        "id": "kimi-k3.1-pro",
+        "label": "Kimi K3.1 Pro",
         "provider": "moonshot",
         "context_window": 1_000_000,
         "max_output_tokens": 128_000,
         "reasoning": True,
-        "description": "Kimi K3.1，1M 上下文、128K 输出。",
+        "description": "Kimi K3.1 Pro，1M 上下文、128K 输出；Moonshot 当前模型。",
     },
 ]
 

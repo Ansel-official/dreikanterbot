@@ -33,7 +33,7 @@ const FALLBACK_PROVIDERS = [
     base_url: 'https://api.moonshot.cn/v1',
     key_placeholder: 'sk-...',
     description: 'Moonshot Kimi API',
-    models: ['kimi-k2.6', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed', 'kimi-k3', 'kimi-k3.1'],
+    models: ['kimi-k2.6', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed', 'kimi-k3', 'kimi-k3.1-pro'],
   },
 ]
 
@@ -48,7 +48,7 @@ const FALLBACK_MODELS = [
   { id: 'kimi-k2.7-code', label: 'Kimi K2.7 Code', provider: 'moonshot', context_window: 262144, max_output_tokens: 262144, reasoning: true },
   { id: 'kimi-k2.7-code-highspeed', label: 'Kimi K2.7 Code HighSpeed', provider: 'moonshot', context_window: 262144, max_output_tokens: 262144, reasoning: true },
   { id: 'kimi-k3', label: 'Kimi K3', provider: 'moonshot', context_window: 1048576, max_output_tokens: 1048576, reasoning: true },
-  { id: 'kimi-k3.1', label: 'Kimi K3.1', provider: 'moonshot', context_window: 1000000, max_output_tokens: 128000, reasoning: true },
+  { id: 'kimi-k3.1-pro', label: 'Kimi K3.1 Pro', provider: 'moonshot', context_window: 1000000, max_output_tokens: 128000, reasoning: true },
 ]
 
 const emptyProviderKeys = () =>

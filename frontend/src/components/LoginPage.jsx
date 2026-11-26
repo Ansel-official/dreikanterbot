@@ -90,7 +90,7 @@ export default function LoginPage({ theme, onToggleTheme }) {
 
         <footer className="login-story-foot">
           <span>MIT License</span>
-          <span>V3.1</span>
+          <span>V3.1.1</span>
           <span>数据存储于你的服务器</span>
         </footer>
       </aside>
@@ -192,7 +192,7 @@ export default function LoginPage({ theme, onToggleTheme }) {
 
         <footer className="login-panel-foot">
           <span>账号由管理员创建</span>
-          <span>Dreikanterbot 3.1</span>
+          <span>Dreikanterbot 3.1.1</span>
         </footer>
       </main>
     </div>
