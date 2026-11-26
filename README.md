@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Ansel-official/dreikanterbot/actions/workflows/ci.yml/badge.svg)](https://github.com/Ansel-official/dreikanterbot/actions/workflows/ci.yml)
 
-> V3.1：**DeepSeek V4 全量模型 + 月之暗面 Kimi、多 Provider Key、1M 上下文、黑白蓝界面、记忆库、声明式插件、Windows / Android 客户端**。对话记录、文件和密钥都留在你自己的服务器上。
+> V3.1：**DeepSeek V4 全量模型 + 月之暗面 Kimi、多 Provider Key、1M 上下文、官方 chat-demo 风格界面、记忆库、声明式插件、Windows / Android 客户端**。对话记录、文件和密钥都留在你自己的服务器上。
 
 这不是一个“免费 AI 聊天站”。从 3.0 起，模型调用必须由用户提供自己的 API Key（或显式开启服务端兜底），
 应用只负责工作台、上下文管理、文件记忆和插件，不代收模型费用。V3.1 起 DeepSeek 与 Kimi 的 Key
