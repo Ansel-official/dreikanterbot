@@ -1,4 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { getApiBase } from '../api/client'
+
+function websocketUrl(token) {
+  const base = getApiBase()
+  const parsed = new URL(base, window.location.href)
+  const protocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:'
+  const path = `${parsed.pathname.replace(/\/api\/?$/, '').replace(/\/$/, '')}/ws/chat`
+  return `${protocol}//${parsed.host}${path}?token=${encodeURIComponent(token)}`
+}
 
 /**
  * WebSocket 连接管理：自动重连、心跳应答、断线重连事件。
@@ -25,8 +34,7 @@ export function useChatSocket({ token, onEvent }) {
     let everConnected = false
     let socket = null
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${protocol}//${window.location.host}/ws/chat?token=${encodeURIComponent(token)}`
+    const url = websocketUrl(token)
 
     const scheduleReconnect = () => {
       if (disposed) return

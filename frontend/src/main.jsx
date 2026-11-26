@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { registerServiceWorker } from './registerSW'
 import './styles.css'
+import './v3.css'
 
 // 在首屏渲染前应用主题，避免闪白/闪黑
 try {

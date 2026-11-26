@@ -5,8 +5,8 @@ import { useToast } from './Toast'
 import { useMediaRecorder } from '../hooks/useMediaRecorder'
 import { makeClientId } from '../utils'
 
-const MAX_FILES = 5
-const MAX_FILE_MB = 20
+const MAX_FILES = 10
+const MAX_FILE_MB = 100
 
 function formatClock(seconds) {
   const minutes = Math.floor(seconds / 60)
@@ -28,6 +28,11 @@ export default function Composer({
   quota,
   mode,
   onModeChange,
+  aiReady = true,
+  onOpenAi,
+  plugins = [],
+  contextWindow = 128000,
+  showKeyNotice = true,
 }) {
   const toast = useToast()
   const [text, setText] = useState('')
@@ -58,12 +63,28 @@ export default function Composer({
   const readyAttachments = attachments.filter((item) => !item.loading && !item.error)
   const canSend =
     connected &&
+    aiReady &&
     !streaming &&
     !recording &&
     !uploading &&
     !extracting &&
     (text.trim().length > 0 || readyAttachments.length > 0)
   const lowQuota = quota && quota.limit != null && quota.remaining <= 10
+  const promptPlugins = (plugins || [])
+    .filter((plugin) => plugin.enabled)
+    .flatMap((plugin) =>
+      (plugin.prompts || []).map((prompt) => ({
+        ...prompt,
+        pluginName: plugin.name,
+      }))
+    )
+    .slice(0, 30)
+
+  const usePluginPrompt = (prompt) => {
+    setText((current) => (current.trim() ? `${current.trim()}\n\n${prompt.prompt}` : prompt.prompt))
+    if (prompt.mode === 'reasoner' && mode !== 'reasoner') onModeChange?.('reasoner')
+    requestAnimationFrame(() => textareaRef.current?.focus())
+  }
 
   const uploadFile = async (file) => {
     const id = makeClientId()
@@ -204,6 +225,16 @@ export default function Composer({
           </div>
         ) : null}
 
+        {connected && !aiReady && showKeyNotice ? (
+          <div className="composer-notice key-required">
+            <Icon name="key" size={14} />
+            <span>需要先接入模型 API Key</span>
+            <button type="button" className="inline-link" onClick={onOpenAi}>
+              去接入
+            </button>
+          </div>
+        ) : null}
+
         {lowQuota ? (
           <div className="composer-notice quota-warning">
             <Icon name="alert" size={13} /> 今日额度仅剩 {quota.remaining} 次
@@ -228,13 +259,15 @@ export default function Composer({
                 onClick={() => onModeChange?.('reasoner')}
                 disabled={streaming}
               >
-                <Icon name="sparkles" size={14} />
-                深度思考
+                <Icon name="brain" size={14} />
+                推理
                 <span className="mode-r1">R1</span>
               </button>
             </div>
             <span className="mode-hint">
-              {mode === 'reasoner' ? '会先展示推理过程，再给出答案' : '更快响应，适合日常问答'}
+              {mode === 'reasoner'
+                ? '先列推理过程，再给结论'
+                : `${Math.round(contextWindow / 1000)}K 上下文 · 低延迟`}
             </span>
           </div>
 
@@ -302,16 +335,42 @@ export default function Composer({
               onChange={(event) => setText(event.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder={connected ? '给 Dreikanterbot 发消息…' : '等待连接…'}
+              placeholder={connected ? (aiReady ? '写下问题、材料或任务…' : '接入模型后开始') : '等待连接…'}
               rows={1}
-              maxLength={20000}
-              disabled={!connected || uploading}
+              maxLength={500000}
+              disabled={!connected || uploading || !aiReady}
               aria-label="消息内容"
             />
           )}
 
           <div className="composer-toolbar">
             <div className="composer-tools">
+              {promptPlugins.length ? (
+                <details className="composer-plugin-menu">
+                  <summary className="icon-btn" title="插入插件模板" aria-label="插入插件模板">
+                    <Icon name="plug" size={18} />
+                  </summary>
+                  <div className="menu-panel plugin-menu-panel">
+                    <div className="menu-label">插件模板</div>
+                    {promptPlugins.map((prompt) => (
+                      <button
+                        key={`${prompt.pluginName}-${prompt.title}`}
+                        type="button"
+                        onClick={(event) => {
+                          event.currentTarget.closest('details')?.removeAttribute('open')
+                          usePluginPrompt(prompt)
+                        }}
+                      >
+                        <span>
+                          <strong>{prompt.title}</strong>
+                          <small>{prompt.pluginName}</small>
+                        </span>
+                        <span className="prompt-mode">{prompt.mode === 'reasoner' ? '推理' : '日常'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              ) : null}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -348,7 +407,7 @@ export default function Composer({
             </div>
 
             <div className="composer-actions">
-              {text.length > 12000 ? <span className="char-count">{text.length}/20000</span> : null}
+              {text.length > 120000 ? <span className="char-count">{text.length}/200000</span> : null}
               {streaming ? (
                 <button type="button" className="btn-stop" onClick={() => onStop?.()} title="停止生成">
                   <Icon name="stop" size={15} />
@@ -369,7 +428,7 @@ export default function Composer({
             </div>
           </div>
         </div>
-        <p className="composer-footer">Dreikanterbot · AI 生成内容可能有误，请核实重要信息</p>
+        <p className="composer-footer">Dreikanterbot V3 · 内容由模型生成，关键结论请核对</p>
       </div>
       {dragOver ? (
         <div className="drop-overlay">

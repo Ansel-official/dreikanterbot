@@ -1,0 +1,44 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.ansel.dreikanterbot'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.ansel.dreikanterbot"
+        minSdk 24
+        targetSdk 34
+        versionCode 300
+        versionName "3.0.0"
+    }
+
+    signingConfigs {
+        // 便携测试签名：使用本机 Android debug keystore，保证 release APK 可直接安装。
+        // 正式上架 / 长期分发请替换为你自己的 keystore。
+        release {
+            storeFile file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

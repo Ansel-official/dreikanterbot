@@ -27,6 +27,16 @@ frontend/.vite/
 models/
 whisper_cache/
 backups/
+backend/data/
+desktop/webview2/release/
+desktop/webview2/desktop.config
+desktop/webview2/desktop-start.log
+desktop/webview2/WebView2Data/
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/*.apk
+mobile/node_modules/
 certs/*.pem
 certs/*.key
 *.log

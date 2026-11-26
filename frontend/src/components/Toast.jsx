@@ -6,7 +6,7 @@ const ToastContext = createContext(null)
 const ICON_BY_TYPE = {
   success: 'check',
   error: 'alert',
-  info: 'sparkles',
+  info: 'info',
   warning: 'alert',
 }
 

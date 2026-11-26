@@ -7,6 +7,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    watch: {
+      // 某些编辑器/代理会在源码旁创建临时目录，Windows 上被锁住会让 chokidar 崩溃
+      ignored: ['**/*.tmpdir/**', '**/.*.tmpdir/**', '**/.package.json.*'],
+    },
     proxy: {
       '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
       '/ws': { target: 'ws://127.0.0.1:8000', ws: true },

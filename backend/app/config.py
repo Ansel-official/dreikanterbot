@@ -52,24 +52,40 @@ class Settings(BaseSettings):
     guest_daily_limit: int = 100
     member_daily_limit: int = 1000
 
-    # ---- DeepSeek ----
+    # ---- DeepSeek / 模型接入 ----
+    # V3 默认要求用户自带 Key（BYOK）。服务端 Key 仅作为可选的兜底，默认关闭。
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
     deepseek_reasoner_model: str = "deepseek-reasoner"
-    deepseek_max_tokens: int = 4096
-    deepseek_reasoner_max_tokens: int = 8192
+    deepseek_max_tokens: int = 65536
+    deepseek_reasoner_max_tokens: int = 65536
     deepseek_temperature: float = 1.0
-    deepseek_context_chars: int = 120_000
-    deepseek_reasoner_context_chars: int = 60_000
-    deepseek_timeout_seconds: int = 120
+    # 上下文按 token 预算计算；DeepSeek 官方模型为 128K。
+    default_context_window: int = 128_000
+    max_context_window: int = 2_000_000
+    allow_server_key_fallback: bool = False
+    deepseek_timeout_seconds: int = 300
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
 
+    # ---- 记忆库 / 个人云端 ----
+    memory_dir: str = "./data/memory"
+    max_memory_mb: int = 100
+    max_memory_total_mb: int = 4096
+    max_memory_text_chars: int = 2_000_000
+    webdav_timeout_seconds: int = 60
+
+    # ---- 声明式插件 ----
+    plugin_dir: str = "./data/plugins"
+    max_plugin_mb: int = 10
+    max_plugin_files: int = 80
+    max_plugin_prompts: int = 50
+
     # ---- 文件导入 ----
-    max_file_mb: int = 20
-    max_file_text_chars: int = 80_000
-    max_attachment_count: int = 5
-    max_import_mb: int = 20
+    max_file_mb: int = 100
+    max_file_text_chars: int = 2_000_000
+    max_attachment_count: int = 10
+    max_import_mb: int = 100
 
     # ---- ASR ----
     asr_engine: str = "auto"  # auto / faster / openai / disabled

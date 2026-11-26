@@ -4,44 +4,59 @@ import Icon from './Icons'
 
 const SUGGESTIONS = [
   {
-    icon: 'sparkles',
-    title: '介绍一下你自己',
-    prompt: '介绍一下你能做什么，并给出 3 个适合内部团队的使用建议。',
-  },
-  {
-    icon: 'database',
-    title: '设计数据库表结构',
-    prompt: '帮我设计一个内部知识库系统的 PostgreSQL 表结构，包含用户、文档、标签和全文检索，给出建表 SQL 和索引建议。',
-  },
-  {
     icon: 'fileText',
-    title: '写一份周报模板',
-    prompt: '帮我写一份研发团队周报模板，包含本周完成、进行中、风险与阻塞、下周计划四个部分。',
+    title: '把材料整理成结论',
+    prompt: '把下面的材料整理成一页结论：先给三句话摘要，再列事实、分歧、风险和建议。缺少信息的地方直接标注，不要猜。\n\n',
   },
   {
-    icon: 'globe',
-    title: '中译英',
-    prompt: '把这句话翻译成地道的商务英文：历史对话永不丢失，换设备也能接着聊。',
+    icon: 'brain',
+    title: '审查一段代码',
+    prompt: '请审查下面这段代码，重点关注正确性、边界条件、并发和错误处理。按阻塞/建议/可选分级，给出可执行的修复。\n\n```\n\n```',
+  },
+  {
+    icon: 'message',
+    title: '把一个方案写清楚',
+    prompt: '把下面的想法写成可执行的方案：目标、约束、步骤、负责人、验收标准、失败时的退路。不要写空泛的愿景。\n\n',
+  },
+  {
+    icon: 'edit',
+    title: '把长文改短',
+    prompt: '把下面的文字压缩到一半，保留事实、数字和限定条件；删掉套话、重复和“首先其次最后”的模板。\n\n',
   },
 ]
 
-function Welcome({ username, onSuggestion, onImport, onDevice }) {
+function Welcome({ username, onSuggestion, onImport, onDevice, onMemory, onPlugin, aiReady, onOpenAi }) {
   return (
     <div className="welcome">
-      <div className="brand-mark welcome-mark" aria-hidden="true">
-        <span>D</span>
+      <div className="welcome-topline">
+        <span className="welcome-eyebrow">DREIKANTERBOT · V3</span>
+        <span className={`welcome-status ${aiReady ? 'ok' : 'warn'}`}>
+          <span className="notice-dot" />
+          {aiReady ? '模型已接入' : '等待接入模型'}
+        </span>
       </div>
-      <span className="welcome-eyebrow">DREIKANTERBOT</span>
-      <h2>{username ? `${username}，你好` : '你好，我是 Dreikanterbot'}</h2>
+      <h2>{username ? `${username}，今天处理什么？` : '今天处理什么？'}</h2>
       <p className="welcome-sub">
-        极简、专注的 AI 助手。对话实时保存，换设备也能接着聊；支持深度思考、文件与官方对话导入。
+        一个留在自己服务器上的工作台：对话、文件、记忆和常用提示词放在一起。没有模型 Key
+        时不会假装能回答。
       </p>
+      {!aiReady ? (
+        <button className="welcome-key-callout" onClick={onOpenAi}>
+          <Icon name="key" size={18} />
+          <span>
+            <strong>先接入模型 API Key</strong>
+            <small>支持 DeepSeek 官方或兼容 OpenAI 协议的网关；上下文可以拉到 128K 以上。</small>
+          </span>
+          <Icon name="chevronRight" size={17} />
+        </button>
+      ) : null}
       <div className="suggestion-grid">
         {SUGGESTIONS.map((item) => (
           <button
             key={item.title}
             className="suggestion-card"
             onClick={() => onSuggestion?.(item.prompt)}
+            disabled={!aiReady}
           >
             <span className="suggestion-icon">
               <Icon name={item.icon} size={18} />
@@ -50,19 +65,23 @@ function Welcome({ username, onSuggestion, onImport, onDevice }) {
             <Icon name="chevronRight" size={15} className="suggestion-arrow" />
           </button>
         ))}
-        <button className="suggestion-card suggestion-import" onClick={onImport}>
-          <span className="suggestion-icon">
-            <Icon name="upload" size={18} />
-          </span>
-          <span>继续 DeepSeek 对话</span>
-          <Icon name="chevronRight" size={15} className="suggestion-arrow" />
+      </div>
+      <div className="welcome-shortcuts">
+        <button onClick={onMemory}>
+          <Icon name="memory" size={16} />
+          记忆库
         </button>
-        <button className="suggestion-card" onClick={onDevice}>
-          <span className="suggestion-icon">
-            <Icon name="download" size={18} />
-          </span>
-          <span>下载与设备建议</span>
-          <Icon name="chevronRight" size={15} className="suggestion-arrow" />
+        <button onClick={onPlugin}>
+          <Icon name="plug" size={16} />
+          插件
+        </button>
+        <button onClick={onImport}>
+          <Icon name="upload" size={16} />
+          继续 DeepSeek 对话
+        </button>
+        <button onClick={onDevice}>
+          <Icon name="download" size={16} />
+          下载与设备
         </button>
       </div>
     </div>
@@ -98,6 +117,10 @@ export default function MessageList({
   onSuggestion,
   onImport,
   onDevice,
+  onMemory,
+  onPlugin,
+  aiReady,
+  onOpenAi,
 }) {
   const scrollRef = useRef(null)
   const endRef = useRef(null)
@@ -134,7 +157,16 @@ export default function MessageList({
         {loading ? (
           <Skeleton />
         ) : messages.length === 0 ? (
-          <Welcome username={username} onSuggestion={onSuggestion} onImport={onImport} onDevice={onDevice} />
+          <Welcome
+            username={username}
+            onSuggestion={onSuggestion}
+            onImport={onImport}
+            onDevice={onDevice}
+            onMemory={onMemory}
+            onPlugin={onPlugin}
+            aiReady={aiReady}
+            onOpenAi={onOpenAi}
+          />
         ) : (
           <>
             {hasMore ? (
@@ -156,7 +188,7 @@ export default function MessageList({
               ))}
             </div>
             <div ref={endRef} />
-            <p className="chat-disclaimer">AI 生成内容可能有误，重要结论请自行核实。</p>
+            <p className="chat-disclaimer">内容由模型生成。涉及事实、数字和法律结论时，请回到来源核对。</p>
           </>
         )}
       </div>

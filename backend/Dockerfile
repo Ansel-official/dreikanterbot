@@ -20,7 +20,7 @@ COPY app ./app
 
 # 非 root 运行；Whisper 模型缓存目录需要可写（compose 中挂载 named volume）
 RUN useradd --create-home --uid 10001 appuser \
-    && mkdir -p /models/whisper \
+    && mkdir -p /models/whisper /app/data/memory /app/data/plugins \
     && chown -R appuser:appuser /app /models
 
 USER appuser

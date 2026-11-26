@@ -57,10 +57,15 @@ jobs:
 
             - `dreikanterbot-web-*.zip`：构建好的 Web 前端，可部署到任意同源 HTTPS 静态站点。
             - `dreikanterbot-deploy-*.zip`：完整源码 + Docker Compose + Nginx/Cloudflare 部署文件。
+            - `Dreikanterbot-3.0.0-win-x64.zip`：Windows 便携客户端（WebView2）。
+            - `Dreikanterbot-3.0.0.apk`：Android 客户端（测试签名）。
 
-            设备建议：iPhone/iPad 用 Safari 添加到主屏幕；Android 用 Chrome 安装 PWA；
-            Windows/macOS/Linux 用 Chrome/Edge 安装为独立窗口。语音输入需要 HTTPS。
+            V3 起模型调用使用每位用户自己的 API Key；客户端只是外壳，首次启动填写服务器地址。
+            Android APK 为侧载测试签名，上架应用商店请替换 keystore。
           files: |
             dreikanterbot-web-*.zip
             dreikanterbot-deploy-*.zip
+            docs/downloads/Dreikanterbot-*.zip
+            docs/downloads/Dreikanterbot-*.apk
+            docs/downloads/SHA256SUMS
           fail_on_unmatched_files: true

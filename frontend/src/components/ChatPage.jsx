@@ -13,6 +13,9 @@ import AdminPanel from './AdminPanel'
 import ImportConversationModal from './ImportConversationModal'
 import DeviceDownloadModal from './DeviceDownloadModal'
 import ConfirmDialog from './ConfirmDialog'
+import AiSetupPanel from './AiSetupPanel'
+import MemoryPanel from './MemoryPanel'
+import PluginPanel from './PluginPanel'
 import Icon from './Icons'
 
 const MODE_KEY = 'dreikanterbot_mode'
@@ -82,6 +85,11 @@ export default function ChatPage({ theme, onToggleTheme }) {
   const [adminOpen, setAdminOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [deviceOpen, setDeviceOpen] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
+  const [memoryOpen, setMemoryOpen] = useState(false)
+  const [pluginOpen, setPluginOpen] = useState(false)
+  const [aiConfig, setAiConfig] = useState(null)
+  const [plugins, setPlugins] = useState([])
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [exporting, setExporting] = useState('')
@@ -126,6 +134,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
 
   const activeSession = sessions.find((item) => item.id === activeSessionId)
   const title = activeSession?.title || '新对话'
+  const aiReady = Boolean(aiConfig?.configured)
 
   const refreshSessions = useCallback(
     async (silent = true) => {
@@ -198,9 +207,19 @@ export default function ChatPage({ theme, onToggleTheme }) {
       switch (event.type) {
         case 'ready': {
           if (event.quota) setQuota(event.quota)
+          setAiConfig((current) => ({
+            ...(current || {}),
+            configured: Boolean(event.ai_configured),
+            source: event.ai_source || current?.source || 'none',
+            key_hint: event.ai_key_hint || current?.key_hint || '',
+            model_chat: event.model || current?.model_chat || 'deepseek-chat',
+            context_window: event.context_window || current?.context_window || 128000,
+            max_output_tokens: event.max_output_tokens || current?.max_output_tokens,
+          }))
           if (event.ai_configured === false && !aiWarnedRef.current) {
             aiWarnedRef.current = true
-            toast('服务端未配置 DeepSeek API Key，暂时无法进行 AI 对话', 'warning')
+            setAiOpen(true)
+            toast('先接入模型 API Key，才能开始对话', 'warning')
           }
           break
         }
@@ -331,8 +350,13 @@ export default function ChatPage({ theme, onToggleTheme }) {
           refreshSessions(true)
           break
         }
+        case 'ai_required': {
+          setAiOpen(true)
+          break
+        }
         case 'error': {
           if (event.quota) setQuota(event.quota)
+          if (event.code === 'api_key_required' || event.code === 'auth_error') setAiOpen(true)
           toast(event.message || '发生未知错误', 'error')
           setMessages((current) =>
             current.map((item) =>
@@ -494,14 +518,24 @@ export default function ChatPage({ theme, onToggleTheme }) {
     let cancelled = false
     const boot = async () => {
       try {
-        const [sessionsResponse, quotaResponse] = await Promise.all([
+        const [sessionsResponse, quotaResponse, aiResponse, pluginResponse] = await Promise.all([
           api.get('/sessions', { params: { limit: 100 } }),
           api.get('/usage/me').catch(() => null),
+          api.get('/settings/ai').catch(() => null),
+          api.get('/plugins').catch(() => null),
         ])
         if (cancelled) return
         setSessions((current) => mergeSessions(current, sessionsResponse.data))
         setHasMoreSessions(sessionsResponse.data.length === 100)
         if (quotaResponse) setQuota(quotaResponse.data)
+        if (aiResponse?.data) {
+          setAiConfig(aiResponse.data)
+          if (!aiResponse.data.configured) {
+            aiWarnedRef.current = true
+            setAiOpen(true)
+          }
+        }
+        if (pluginResponse?.data) setPlugins(pluginResponse.data)
 
         const wantNew = new URLSearchParams(window.location.search).get('new') === '1'
         if (wantNew) window.history.replaceState(null, '', '/')
@@ -555,6 +589,11 @@ export default function ChatPage({ theme, onToggleTheme }) {
     (raw, attachments = []) => {
       const content = String(raw || '').trim()
       if (!content && !attachments.length) return false
+      if (!aiReady) {
+        setAiOpen(true)
+        toast('先接入模型 API Key，才能发送消息', 'warning')
+        return false
+      }
       if (streamingRef.current) {
         toast('上一条回复还在生成中，请稍候', 'warning')
         return false
@@ -615,7 +654,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
       }
       return true
     },
-    [mode, send, socketStatus, toast]
+    [aiReady, mode, send, socketStatus, toast]
   )
 
   const stopGeneration = useCallback(() => {
@@ -757,6 +796,18 @@ export default function ChatPage({ theme, onToggleTheme }) {
           setSidebarOpen(false)
           setDeviceOpen(true)
         }}
+        onOpenMemory={() => {
+          setSidebarOpen(false)
+          setMemoryOpen(true)
+        }}
+        onOpenPlugins={() => {
+          setSidebarOpen(false)
+          setPluginOpen(true)
+        }}
+        onOpenAi={() => {
+          setSidebarOpen(false)
+          setAiOpen(true)
+        }}
         onLogout={logout}
         theme={theme}
         onToggleTheme={onToggleTheme}
@@ -790,6 +841,19 @@ export default function ChatPage({ theme, onToggleTheme }) {
 
           <div className="header-actions">
             <ConnectionBadge status={socketStatus} />
+            <button
+              className={`key-status-chip ${aiReady ? 'ok' : 'warn'}`}
+              onClick={() => setAiOpen(true)}
+              title={aiReady ? `模型已接入 ${aiConfig?.key_hint || ''}` : '尚未配置模型 API Key'}
+            >
+              <Icon name={aiReady ? 'check' : 'key'} size={13} />
+              {aiReady ? '已接入' : '接模型'}
+            </button>
+            {aiReady ? (
+              <span className="context-chip" title="当前模型的上下文窗口">
+                {Math.round((aiConfig?.context_window || 128000) / 1000)}K 上下文
+              </span>
+            ) : null}
             <QuotaChip quota={quota} />
             <button
               className="icon-btn"
@@ -826,6 +890,22 @@ export default function ChatPage({ theme, onToggleTheme }) {
                 </div>
               </details>
             ) : null}
+            <button
+              className="icon-btn"
+              onClick={() => setMemoryOpen(true)}
+              title="记忆库"
+              aria-label="记忆库"
+            >
+              <Icon name="memory" size={18} />
+            </button>
+            <button
+              className="icon-btn"
+              onClick={() => setPluginOpen(true)}
+              title="插件"
+              aria-label="插件"
+            >
+              <Icon name="plug" size={18} />
+            </button>
             <button
               className="icon-btn"
               onClick={() => setDeviceOpen(true)}
@@ -867,6 +947,10 @@ export default function ChatPage({ theme, onToggleTheme }) {
           onSuggestion={sendMessage}
           onImport={() => setImportOpen(true)}
           onDevice={() => setDeviceOpen(true)}
+          onMemory={() => setMemoryOpen(true)}
+          onPlugin={() => setPluginOpen(true)}
+          aiReady={aiReady}
+          onOpenAi={() => setAiOpen(true)}
         />
 
         <Composer
@@ -877,6 +961,11 @@ export default function ChatPage({ theme, onToggleTheme }) {
           quota={quota}
           mode={mode}
           onModeChange={changeMode}
+          aiReady={aiReady}
+          onOpenAi={() => setAiOpen(true)}
+          plugins={plugins}
+          contextWindow={aiConfig?.context_window || 128000}
+          showKeyNotice={messages.length > 0}
         />
       </main>
 
@@ -893,6 +982,29 @@ export default function ChatPage({ theme, onToggleTheme }) {
           setSettingsOpen(false)
           setImportOpen(true)
         }}
+        onOpenAi={() => {
+          setSettingsOpen(false)
+          setAiOpen(true)
+        }}
+        aiConfig={aiConfig}
+        onAiSaved={setAiConfig}
+      />
+
+      <AiSetupPanel
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        onSaved={(data) => {
+          setAiConfig(data)
+          setAiOpen(false)
+        }}
+      />
+
+      <MemoryPanel open={memoryOpen} onClose={() => setMemoryOpen(false)} />
+
+      <PluginPanel
+        open={pluginOpen}
+        onClose={() => setPluginOpen(false)}
+        onChanged={setPlugins}
       />
 
       <AdminPanel

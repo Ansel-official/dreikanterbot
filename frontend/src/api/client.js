@@ -1,6 +1,28 @@
 import axios from 'axios'
 
 const TOKEN_KEY = 'deepseek_chat_token'
+const API_BASE_KEY = 'dreikanterbot_api_base'
+
+export function getApiBase() {
+  try {
+    const saved = localStorage.getItem(API_BASE_KEY)
+    if (saved) return saved.replace(/\/$/, '')
+  } catch {
+    /* ignore */
+  }
+  return (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '')
+}
+
+export function setApiBase(value) {
+  const base = String(value || '').trim().replace(/\/$/, '')
+  try {
+    if (base) localStorage.setItem(API_BASE_KEY, base)
+    else localStorage.removeItem(API_BASE_KEY)
+  } catch {
+    /* ignore */
+  }
+  api.defaults.baseURL = getApiBase()
+}
 
 export function getToken() {
   try {
@@ -29,7 +51,7 @@ export function setUnauthorizedHandler(handler) {
 }
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE || '/api',
+  baseURL: getApiBase(),
   timeout: 30000,
 })
 

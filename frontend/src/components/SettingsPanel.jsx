@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import api, { downloadFromApi, errorMessage } from '../api/client'
+import api, { downloadFromApi, errorMessage, getApiBase, setApiBase } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from './Toast'
 import Modal from './Modal'
 import ConfirmDialog from './ConfirmDialog'
+import AiSettingsForm from './AiSettingsForm'
 import Icon from './Icons'
 import {
   copyText,
@@ -14,8 +15,9 @@ import {
 } from '../utils'
 
 const TABS = [
+  { id: 'ai', label: 'AI 接入', icon: 'key' },
   { id: 'account', label: '账号', icon: 'user' },
-  { id: 'keys', label: 'API Keys', icon: 'key' },
+  { id: 'keys', label: '访问密钥', icon: 'shield' },
   { id: 'usage', label: '用量', icon: 'barChart' },
   { id: 'data', label: '数据', icon: 'database' },
 ]
@@ -30,6 +32,9 @@ export default function SettingsPanel({
   onToggleTheme,
   onSessionsChanged,
   onOpenImport,
+  onOpenAi,
+  aiConfig,
+  onAiSaved,
 }) {
   const toast = useToast()
   const { applyTokenResponse, logout } = useAuth()
@@ -51,9 +56,16 @@ export default function SettingsPanel({
   const [usageLoading, setUsageLoading] = useState(false)
 
   const [exporting, setExporting] = useState('')
+  const [serverAddr, setServerAddr] = useState(() => getApiBase())
   const [deleted, setDeleted] = useState([])
   const [deletedLoading, setDeletedLoading] = useState(false)
   const [restoringId, setRestoringId] = useState(null)
+
+  useEffect(() => {
+    if (!open) return
+    if (aiConfig && !aiConfig.configured) setTab('ai')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, aiConfig?.configured])
 
   useEffect(() => {
     if (!open) return
@@ -221,6 +233,35 @@ export default function SettingsPanel({
           </nav>
 
           <div className="settings-content">
+            {tab === 'ai' ? (
+              <section className="settings-section">
+                <div className="settings-heading-row">
+                  <div>
+                    <h3 className="settings-heading">模型接入</h3>
+                    <p className="settings-desc">
+                      你自己的 API Key 决定模型、上下文和费用；V3 默认不在服务端保存可用 Key。
+                    </p>
+                  </div>
+                  <button className="btn btn-sm btn-ghost" onClick={onOpenAi}>
+                    <Icon name="sliders" size={14} />
+                    全屏设置
+                  </button>
+                </div>
+                <AiSettingsForm compact onSaved={onAiSaved} />
+                <div className="settings-divider" />
+                <h3 className="settings-heading">当前状态</h3>
+                <div className="ai-mini-summary">
+                  <span>
+                    <Icon name="check" size={14} />
+                    {aiConfig?.configured ? '可对话' : '未接入'}
+                  </span>
+                  <span>{aiConfig?.model_chat || 'deepseek-chat'}</span>
+                  <span>{Math.round((aiConfig?.context_window || 128000) / 1000)}K 上下文</span>
+                  <span>{aiConfig?.key_hint || '无 Key'}</span>
+                </div>
+              </section>
+            ) : null}
+
             {tab === 'account' ? (
               <section className="settings-section">
                 <div className="account-card">
@@ -544,6 +585,33 @@ export default function SettingsPanel({
                     ))}
                   </div>
                 )}
+
+                <div className="settings-divider" />
+                <h3 className="settings-heading">客户端服务器地址</h3>
+                <p className="settings-desc">
+                  Windows / Android 客户端需要知道你的服务器地址。浏览器同源使用时保持 <code>/api</code> 即可。
+                </p>
+                <div className="inline-form">
+                  <div className="input-wrap">
+                    <Icon name="globe" size={16} />
+                    <input
+                      value={serverAddr}
+                      onChange={(event) => setServerAddr(event.target.value)}
+                      placeholder="https://chat.example.com/api"
+                      spellCheck="false"
+                    />
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setApiBase(serverAddr.trim())
+                      toast('服务器地址已保存，正在重载…', 'success')
+                      setTimeout(() => window.location.reload(), 400)
+                    }}
+                  >
+                    保存并重载
+                  </button>
+                </div>
 
                 <div className="settings-divider" />
                 <h3 className="settings-heading">离线使用</h3>

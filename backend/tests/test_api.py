@@ -103,15 +103,33 @@ def test_websocket_chat_persists_and_exports(
     assert create.status_code == 201, create.text
     session_id = create.json()["id"]
 
-    async def fake_stream(history, *, mode="chat"):
+    async def fake_config(user_id, *, row=None):
+        from app.services.ai_config import AIConfig
+
+        return AIConfig(
+            configured=True,
+            source="user",
+            base_url="https://api.deepseek.com",
+            api_key="sk-test",
+            key_hint="…test",
+            model_chat="deepseek-chat",
+            model_reasoner="deepseek-reasoner",
+            context_window=128000,
+            max_output_tokens=8192,
+            temperature=1.0,
+        )
+
+    async def fake_stream(history, *, mode="chat", config=None):
         assert history[-1]["role"] == "user"
         assert mode == "chat"
+        assert config is not None
         yield StreamEvent(content="**你好**，")
         yield StreamEvent(content="这是集成测试回复。")
         yield StreamEvent(
             usage={"prompt_tokens": 12, "completion_tokens": 8, "total_tokens": 20}
         )
 
+    monkeypatch.setattr(chat_ws, "get_ai_config", fake_config)
     monkeypatch.setattr(chat_ws, "stream_completion", fake_stream)
 
     token = member_headers["Authorization"].split(" ", 1)[1]
@@ -213,7 +231,23 @@ def test_reasoner_progress_with_file_attachment(
     file_text = extracted.json()["text"]
     assert "Dreikanter" in file_text
 
-    async def fake_stream(history, *, mode="chat"):
+    async def fake_config(user_id, *, row=None):
+        from app.services.ai_config import AIConfig
+
+        return AIConfig(
+            configured=True,
+            source="user",
+            base_url="https://api.deepseek.com",
+            api_key="sk-test",
+            key_hint="…test",
+            model_chat="deepseek-chat",
+            model_reasoner="deepseek-reasoner",
+            context_window=128000,
+            max_output_tokens=65536,
+            temperature=1.0,
+        )
+
+    async def fake_stream(history, *, mode="chat", config=None):
         assert mode == "reasoner"
         assert "[附件：brief.txt]" in history[-1]["content"]
         assert "预算 42 万" in history[-1]["content"]
@@ -222,6 +256,7 @@ def test_reasoner_progress_with_file_attachment(
         yield StreamEvent(content="项目代号是 Dreikanter，预算 42 万。")
         yield StreamEvent(usage={"prompt_tokens": 20, "completion_tokens": 12, "total_tokens": 32})
 
+    monkeypatch.setattr(chat_ws, "get_ai_config", fake_config)
     monkeypatch.setattr(chat_ws, "stream_completion", fake_stream)
     token = member_headers["Authorization"].split(" ", 1)[1]
     events: list[dict] = []

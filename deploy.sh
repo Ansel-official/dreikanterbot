@@ -35,7 +35,7 @@ Dreikanterbot 一键部署
 首次运行会：
   1. 从 .env.example 生成 .env
   2. 自动生成 SECRET_KEY、PostgreSQL 密码、管理员初始密码
-  3. 询问 DEEPSEEK_API_KEY（可留空，稍后再填）
+  3. 不询问模型 Key（V3 由用户登录后自行填写）
   4. 构建并启动 db / redis / backend / frontend
   5. 等待健康检查通过并打印访问地址与管理员账号
 EOF
@@ -129,20 +129,9 @@ if [[ -z "$current_db" || "$current_db" == *"change-me-strong"* ]]; then
   set_env DATABASE_URL "postgresql://${pg_user}:${pg_pass}@db:5432/${pg_db}"
 fi
 
-api_key="$(get_env DEEPSEEK_API_KEY)"
-if [[ -z "$api_key" || "$api_key" == "sk-please-replace-me" ]]; then
-  if [[ -t 0 ]]; then
-    printf "请输入 DeepSeek API Key（留空可稍后写入 .env）："
-    IFS= read -r -s api_key || true
-    printf "\n"
-  fi
-  if [[ -n "$api_key" ]]; then
-    set_env DEEPSEEK_API_KEY "$api_key"
-    ok "已写入 DEEPSEEK_API_KEY"
-  else
-    warn "未配置 DEEPSEEK_API_KEY：应用可以启动，但聊天会返回配置错误。"
-  fi
-fi
+# V3 默认 BYOK：不询问服务端模型 Key。每个用户登录后在「设置 → AI 接入」填写。
+warn "V3 使用用户自带 API Key；服务端不再询问 DEEPSEEK_API_KEY。"
+warn "如需让全员共用一个 Key，请在 .env 设置 DEEPSEEK_API_KEY 和 ALLOW_SERVER_KEY_FALLBACK=true。"
 
 # 管理员：生成一个符合密码策略的初始密码；已有则保留
 admin_user="$(get_env ADMIN_USERNAME)"; admin_user="${admin_user:-admin}"

@@ -132,9 +132,9 @@ function ReasoningPanel({ message, pending }) {
       >
         <span className="reasoning-title">
           <span className={`reasoning-orb ${live ? 'pulse' : ''}`}>
-            <Icon name="sparkles" size={13} />
+            <Icon name="brain" size={13} />
           </span>
-          {live ? '正在深度思考' : '已深度思考'}
+          {live ? '正在推理' : '推理过程'}
           {elapsed ? <span className="reasoning-time">{elapsed}</span> : null}
         </span>
         <Icon name={expanded ? 'chevronDown' : 'chevronRight'} size={15} />

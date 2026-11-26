@@ -1,12 +1,17 @@
 # 本地演示
 
-这个目录让 Dreikanterbot 在没有 DeepSeek API Key 的情况下也能完整演示。
+这个目录让 Dreikanterbot 在没有真实 DeepSeek API Key 的情况下也能完整演示。
 
 `mock_deepseek.py` 实现了一个最小 OpenAI 兼容流式接口，会返回固定的中文推理过程和回答；它只监听 `127.0.0.1:9000`，不会调用任何真实模型，也不会产生费用。
 
+V3 默认要求用户自带 Key。演示有两种接法：
+
+1. 登录后打开「设置 → AI 接入」，填写任意非空 Key（例如 `mock-demo-key`），接口地址填 `http://127.0.0.1:9000/v1`，日常模型填 `mock-chat`，推理模型填 `mock-reasoner`；
+2. 或在后端设置 `ALLOW_SERVER_KEY_FALLBACK=true`，让 mock 作为服务端兜底。
+
 ## 演示内容
 
-- 深度思考：流式推理内容 + 进度条 + 折叠/展开
+- 推理模式：流式推理内容 + 进度条 + 折叠/展开
 - 文件上传：`sample-brief.txt` 会作为附件上下文
 - 官方对话导入：`sample-import.json` 会重建 1 个会话、4 条消息
 - 多端布局与下载面板

@@ -21,6 +21,9 @@ export default function Sidebar({
   onOpenAdmin,
   onOpenImport,
   onOpenDevice,
+  onOpenMemory,
+  onOpenPlugins,
+  onOpenAi,
   onLogout,
   theme,
   onToggleTheme,
@@ -68,7 +71,7 @@ export default function Sidebar({
           </div>
           <div className="brand-text">
             <strong>Dreikanterbot</strong>
-            <span>极简 AI 助手</span>
+            <span>私人工作台 · V3</span>
           </div>
         </div>
         <button className="icon-btn mobile-only" onClick={onClose} aria-label="关闭侧边栏">
@@ -241,6 +244,18 @@ export default function Sidebar({
         </div>
 
         <div className="sidebar-actions">
+          <button className="side-action" onClick={onOpenAi}>
+            <Icon name="key" size={16} />
+            模型接入
+          </button>
+          <button className="side-action" onClick={onOpenMemory}>
+            <Icon name="memory" size={16} />
+            记忆库
+          </button>
+          <button className="side-action" onClick={onOpenPlugins}>
+            <Icon name="plug" size={16} />
+            插件
+          </button>
           <button className="side-action" onClick={onOpenImport}>
             <Icon name="upload" size={16} />
             继续对话

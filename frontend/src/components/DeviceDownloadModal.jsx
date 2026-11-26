@@ -5,7 +5,9 @@ import { usePwaInstall } from '../hooks/usePwaInstall'
 import { useToast } from './Toast'
 
 const REPO_URL = 'https://github.com/Ansel-official/dreikanterbot'
-const RELEASE_URL = `${REPO_URL}/releases/latest`
+const RELEASE_URL = `${REPO_URL}/releases/download/v3.0.0`
+const WIN_ZIP = `${RELEASE_URL}/Dreikanterbot-3.0.0-win-x64.zip`
+const APK_URL = `${RELEASE_URL}/Dreikanterbot-3.0.0.apk`
 
 const DEVICES = [
   {
@@ -96,19 +98,27 @@ export default function DeviceDownloadModal({ open, onClose }) {
       </section>
 
       <div className="download-actions">
-        <a className="download-card" href={RELEASE_URL} target="_blank" rel="noreferrer">
+        <a className="download-card" href={WIN_ZIP} target="_blank" rel="noreferrer">
           <Icon name="download" size={20} />
           <div>
-            <strong>下载 Web 安装包</strong>
-            <span>静态前端 ZIP，可部署到任意 HTTPS 静态站点</span>
+            <strong>Windows 便携版</strong>
+            <span>EXE + WebView2，首次填写服务器地址</span>
           </div>
           <Icon name="chevronRight" size={16} />
         </a>
-        <a className="download-card" href={RELEASE_URL} target="_blank" rel="noreferrer">
+        <a className="download-card" href={APK_URL} target="_blank" rel="noreferrer">
+          <Icon name="download" size={20} />
+          <div>
+            <strong>Android APK</strong>
+            <span>侧载安装，测试签名；Android 7+</span>
+          </div>
+          <Icon name="chevronRight" size={16} />
+        </a>
+        <a className="download-card" href={`${REPO_URL}/releases`} target="_blank" rel="noreferrer">
           <Icon name="database" size={20} />
           <div>
-            <strong>下载部署包</strong>
-            <span>完整源码、Docker Compose 与 Nginx/Cloudflare 配置</span>
+            <strong>Web / 部署包</strong>
+            <span>静态前端 ZIP 与完整 Docker 部署包</span>
           </div>
           <Icon name="chevronRight" size={16} />
         </a>
@@ -135,8 +145,8 @@ export default function DeviceDownloadModal({ open, onClose }) {
       <div className="download-note">
         <Icon name="info" size={16} />
         <p>
-          语音输入和安装 PWA 需要 HTTPS；建议使用 5GHz Wi-Fi 或 4G/5G。当前直接提供 Web
-          安装包与完整部署包；原生 APK/IPA/EXE 需要平台证书和单独打包，PWA 已覆盖日常使用。
+          语音输入和安装 PWA 需要 HTTPS；建议使用 5GHz Wi-Fi 或 4G/5G。EXE/APK 只是工作台外壳，
+          需要先部署服务器；APK 为测试签名，正式上架请换自己的 keystore。
         </p>
       </div>
       <p className="download-footnote">

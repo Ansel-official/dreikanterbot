@@ -1,7 +1,13 @@
-"""DeepSeek 官方 API 封装：历史拼接、上下文裁剪、流式生成、错误翻译。"""
+"""模型调用：上下文预算、历史裁剪、流式生成、错误翻译。
+
+V3 起模型客户端不再绑死服务端环境变量，而是由调用方传入 AIConfig
+（用户自带 Key 或显式开启的服务端兜底）。上下文按 token 预算裁剪，
+默认吃满模型的 128K 窗口，而不是旧的固定字符数。
+"""
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import AsyncIterator, Iterable
@@ -18,10 +24,10 @@ from openai import (
 )
 
 from ..config import settings
+from .ai_config import AIConfig
 
 logger = logging.getLogger(__name__)
 
-_client: AsyncOpenAI | None = None
 _PLACEHOLDER_KEYS = {"", "sk-please-replace-me"}
 
 
@@ -52,25 +58,42 @@ class BuiltContext:
     messages: list[dict] = field(default_factory=list)
     trimmed: int = 0
     chars: int = 0
+    estimated_tokens: int = 0
+    context_window: int = 0
+    reserved_output: int = 0
 
 
-def get_client() -> AsyncOpenAI:
-    global _client
-    if settings.deepseek_api_key.strip() in _PLACEHOLDER_KEYS:
-        raise DeepSeekNotConfigured("服务端未配置 DEEPSEEK_API_KEY")
-    if _client is None:
-        _client = AsyncOpenAI(
-            api_key=settings.deepseek_api_key,
-            base_url=settings.deepseek_base_url.rstrip("/"),
-            timeout=httpx.Timeout(
-                connect=10.0,
-                read=float(settings.deepseek_timeout_seconds),
-                write=30.0,
-                pool=10.0,
-            ),
-            max_retries=0,  # 流式请求不做自动重试，避免重复扣费；由用户手动重试
-        )
-    return _client
+def _server_config() -> AIConfig:
+    key = (settings.deepseek_api_key or "").strip()
+    return AIConfig(
+        configured=key not in _PLACEHOLDER_KEYS,
+        source="server" if key not in _PLACEHOLDER_KEYS else "none",
+        base_url=(settings.deepseek_base_url or "https://api.deepseek.com").rstrip("/"),
+        api_key=key,
+        key_hint="",
+        model_chat=settings.deepseek_model,
+        model_reasoner=settings.deepseek_reasoner_model,
+        context_window=settings.default_context_window,
+        max_output_tokens=settings.deepseek_max_tokens,
+        temperature=settings.deepseek_temperature,
+    )
+
+
+def get_client(config: AIConfig | None = None) -> AsyncOpenAI:
+    config = config or _server_config()
+    if not config.api_key or config.api_key.strip() in _PLACEHOLDER_KEYS:
+        raise DeepSeekNotConfigured("尚未配置模型 API Key，请先在设置 → AI 接入中填写")
+    return AsyncOpenAI(
+        api_key=config.api_key,
+        base_url=(config.base_url or "https://api.deepseek.com").rstrip("/"),
+        timeout=httpx.Timeout(
+            connect=15.0,
+            read=float(settings.deepseek_timeout_seconds),
+            write=60.0,
+            pool=15.0,
+        ),
+        max_retries=0,  # 流式请求不自动重试，避免重复扣费
+    )
 
 
 def deepseek_configured() -> bool:
@@ -82,8 +105,7 @@ def _now_text() -> str:
         tz = ZoneInfo(settings.app_timezone)
     except (ZoneInfoNotFoundError, ValueError):
         tz = timezone.utc
-    now = datetime.now(tz)
-    return now.strftime("%Y-%m-%d %H:%M（%Z）")
+    return datetime.now(tz).strftime("%Y-%m-%d %H:%M（%Z）")
 
 
 def build_system_prompt() -> str:
@@ -92,8 +114,30 @@ def build_system_prompt() -> str:
     return f"{base}\n\n{extra}" if base else extra
 
 
+def estimate_tokens(text: str) -> int:
+    """保守估算 token：中文/日文/韩文按 0.9 token/字，其他按 0.3 token/字符。
+
+    不追求和某个 tokenizer 完全一致，预算宁可留余量，避免 400 上下文溢出。
+    """
+    text = text or ""
+    cjk = 0
+    other = 0
+    for char in text:
+        code = ord(char)
+        if (
+            0x4E00 <= code <= 0x9FFF
+            or 0x3400 <= code <= 0x4DBF
+            or 0x3040 <= code <= 0x30FF
+            or 0xAC00 <= code <= 0xD7AF
+        ):
+            cjk += 1
+        else:
+            other += 1
+    return int(cjk * 0.9 + other * 0.3) + 1
+
+
 def trim_history(history: Iterable[dict], max_chars: int) -> tuple[list[dict], int]:
-    """从最新往回保留消息，按字符数裁剪，返回 (裁剪后消息, 丢弃条数)。"""
+    """按字符数裁剪（保留给旧测试/兼容调用）；聊天主路径使用 token 预算。"""
     items = [
         {"role": item["role"], "content": (item.get("content") or "").strip()}
         for item in history
@@ -108,53 +152,141 @@ def trim_history(history: Iterable[dict], max_chars: int) -> tuple[list[dict], i
         kept.append(item)
         total += size
     kept.reverse()
+    return _merge_adjacent(kept), len(items) - len(kept)
 
-    # 合并相邻同角色消息，兼容部分网关对角色交替的严格要求
+
+def _merge_adjacent(items: list[dict]) -> list[dict]:
     merged: list[dict] = []
-    for item in kept:
+    for item in items:
         if merged and merged[-1]["role"] == item["role"]:
-            merged[-1]["content"] += "\n\n" + item["content"]
+            merged[-1] = {**merged[-1], "content": merged[-1]["content"] + "\n\n" + item["content"]}
         else:
             merged.append(dict(item))
-    return merged, len(items) - len(kept)
+    return merged
 
 
-def model_for_mode(mode: str) -> str:
-    if mode == "reasoner":
-        return (settings.deepseek_reasoner_model or settings.deepseek_model).strip()
-    return settings.deepseek_model
+def trim_history_tokens(history: Iterable[dict], max_tokens: int) -> tuple[list[dict], int]:
+    """从最新消息往回保留，直到 token 预算用完。"""
+    items = [
+        {"role": item["role"], "content": (item.get("content") or "").strip()}
+        for item in history
+        if item.get("role") in {"user", "assistant"} and (item.get("content") or "").strip()
+    ]
+    kept: list[dict] = []
+    total = 0
+    for item in reversed(items):
+        size = estimate_tokens(item["content"])
+        if kept and total + size > max_tokens:
+            break
+        # 单条消息比预算还大时，至少保留当前的用户问题，避免空上下文
+        if not kept and size > max_tokens:
+            kept.append(item)
+            total += size
+            break
+        kept.append(item)
+        total += size
+    kept.reverse()
+    return _merge_adjacent(kept), len(items) - len(kept)
 
 
-def context_chars_for_mode(mode: str) -> int:
-    if mode == "reasoner":
-        return settings.deepseek_reasoner_context_chars
-    return settings.deepseek_context_chars
+def model_for_mode(mode: str, config: AIConfig | None = None) -> str:
+    config = config or _server_config()
+    return config.model_for(mode)
 
 
-def build_context(history: list[dict], *, mode: str = "chat") -> BuiltContext:
-    trimmed, dropped = trim_history(history, context_chars_for_mode(mode))
-    system = {"role": "system", "content": build_system_prompt()}
-    messages = [system, *trimmed]
+def context_window_for(config: AIConfig | None = None) -> int:
+    config = config or _server_config()
+    if config.context_window > 0:
+        return config.context_window
+    return settings.default_context_window
+
+
+def build_context(
+    history: list[dict],
+    *,
+    mode: str = "chat",
+    config: AIConfig | None = None,
+) -> BuiltContext:
+    config = config or _server_config()
+    system_text = build_system_prompt()
+    system_tokens = estimate_tokens(system_text)
+    window = context_window_for(config)
+    output = config.output_for(mode)
+    # 给工具/格式/估算误差留 1024 token 余量；至少给历史留 2K。
+    budget = max(2_048, window - output - system_tokens - 1_024)
+    trimmed, dropped = trim_history_tokens(history, budget)
+    messages = [{"role": "system", "content": system_text}, *trimmed]
     chars = sum(len(m["content"]) for m in messages)
-    return BuiltContext(messages=messages, trimmed=dropped, chars=chars)
+    estimated = system_tokens + sum(estimate_tokens(m["content"]) for m in trimmed)
+    return BuiltContext(
+        messages=messages,
+        trimmed=dropped,
+        chars=chars,
+        estimated_tokens=estimated,
+        context_window=window,
+        reserved_output=output,
+    )
+
+
+async def test_connection(config: AIConfig) -> dict:
+    """最小化真实调用，验证 Key / 地址 / 模型是否可用。"""
+    started = time.monotonic()
+    client = get_client(config)
+    try:
+        response = await client.chat.completions.create(
+            model=config.model_for("chat"),
+            messages=[{"role": "user", "content": "ping"}],
+            max_tokens=8,
+            temperature=0,
+            stream=False,
+        )
+        latency = int((time.monotonic() - started) * 1000)
+        content = ""
+        if response.choices:
+            content = (response.choices[0].message.content or "").strip()
+        return {
+            "ok": True,
+            "latency_ms": latency,
+            "model": config.model_for("chat"),
+            "message": content[:120] or "连接成功",
+        }
+    except AuthenticationError as exc:
+        raise DeepSeekError("API Key 无效或已失效", code="auth_error") from exc
+    except RateLimitError as exc:
+        raise DeepSeekError("上游限流，请稍后再试", code="upstream_rate_limit") from exc
+    except (APITimeoutError, APIConnectionError) as exc:
+        raise DeepSeekError("连接失败：地址不可达或超时", code="upstream_unreachable") from exc
+    except APIError as exc:
+        status = getattr(exc, "status_code", None)
+        raise DeepSeekError(f"接口返回错误（HTTP {status or 'unknown'}）", code="upstream_error") from exc
+    except DeepSeekError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("测试模型连接失败")
+        raise DeepSeekError("无法连接模型服务，请检查地址和 Key", code="internal_error") from exc
 
 
 async def stream_completion(
-    history: list[dict], *, mode: str = "chat"
+    history: list[dict],
+    *,
+    mode: str = "chat",
+    config: AIConfig | None = None,
 ) -> AsyncIterator[StreamEvent]:
-    """把完整历史交给 DeepSeek，逐块 yield 文本；最后一块携带 usage。"""
-    client = get_client()
-    model = model_for_mode(mode)
-    context = build_context(history, mode=mode)
-    max_tokens = (
-        settings.deepseek_reasoner_max_tokens if mode == "reasoner" else settings.deepseek_max_tokens
-    )
+    """把历史交给模型，逐块 yield。config 必须由调用方提供（用户 Key）。"""
+    config = config or _server_config()
+    client = get_client(config)
+    model = config.model_for(mode)
+    context = build_context(history, mode=mode, config=config)
+    max_tokens = config.output_for(mode)
     logger.info(
-        "调用 DeepSeek mode=%s model=%s messages=%s chars=%s trimmed=%s",
+        "调用模型 source=%s mode=%s model=%s messages=%s estimated_tokens=%s window=%s output=%s trimmed=%s",
+        config.source,
         mode,
         model,
         len(context.messages),
-        context.chars,
+        context.estimated_tokens,
+        context.context_window,
+        max_tokens,
         context.trimmed,
     )
     try:
@@ -165,9 +297,8 @@ async def stream_completion(
             "stream_options": {"include_usage": True},
             "max_tokens": max_tokens,
         }
-        # deepseek-reasoner 不支持 temperature / top_p 等采样参数
         if mode == "chat":
-            kwargs["temperature"] = settings.deepseek_temperature
+            kwargs["temperature"] = config.temperature
         stream = await client.chat.completions.create(**kwargs)
         usage: dict | None = None
         finish_reason: str | None = None
@@ -196,26 +327,25 @@ async def stream_completion(
                     yield StreamEvent(content=content)
             yield StreamEvent(usage=usage, finish_reason=finish_reason)
         finally:
-            # 用户点击停止或连接断开时，及时关闭上游 HTTP 流，避免连接泄漏
             try:
                 await stream.close()
             except Exception:  # noqa: BLE001
                 pass
     except AuthenticationError as exc:
-        logger.error("DeepSeek 鉴权失败：%s", exc)
-        raise DeepSeekError("DeepSeek API Key 无效或已失效，请联系管理员检查配置", code="auth_error") from exc
+        logger.error("模型鉴权失败：%s", exc)
+        raise DeepSeekError("API Key 无效或已失效，请在设置 → AI 接入中更新", code="auth_error") from exc
     except RateLimitError as exc:
-        logger.warning("DeepSeek 上游限流：%s", exc)
-        raise DeepSeekError("DeepSeek 上游限流，请稍后再试", code="upstream_rate_limit", retryable=True) from exc
+        logger.warning("模型上游限流：%s", exc)
+        raise DeepSeekError("上游限流，请稍后再试", code="upstream_rate_limit", retryable=True) from exc
     except (APITimeoutError, APIConnectionError) as exc:
-        logger.warning("DeepSeek 连接失败：%s", exc)
-        raise DeepSeekError("连接 DeepSeek 超时或网络异常，请稍后重试", code="upstream_unreachable", retryable=True) from exc
+        logger.warning("模型连接失败：%s", exc)
+        raise DeepSeekError("连接模型服务超时或网络异常，请稍后重试", code="upstream_unreachable", retryable=True) from exc
     except APIError as exc:
         status = getattr(exc, "status_code", None)
-        logger.error("DeepSeek API 错误 status=%s err=%s", status, exc)
-        raise DeepSeekError(f"DeepSeek 接口返回错误（HTTP {status or 'unknown'}）", code="upstream_error", retryable=True) from exc
+        logger.error("模型 API 错误 status=%s err=%s", status, exc)
+        raise DeepSeekError(f"模型接口返回错误（HTTP {status or 'unknown'}）", code="upstream_error", retryable=True) from exc
     except DeepSeekError:
         raise
     except Exception as exc:  # noqa: BLE001
-        logger.exception("DeepSeek 调用出现未预期异常")
-        raise DeepSeekError("AI 服务暂时不可用，请稍后重试", code="internal_error") from exc
+        logger.exception("模型调用出现未预期异常")
+        raise DeepSeekError("模型服务暂时不可用，请稍后重试", code="internal_error") from exc

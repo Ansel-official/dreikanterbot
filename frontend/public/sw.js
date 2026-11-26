@@ -5,7 +5,7 @@
  * - 页面导航网络优先，失败回退缓存
  * - /api/* 与 /ws/* 永不缓存（会话数据必须实时）
  */
-const VERSION = 'v2.0.0'
+const VERSION = 'v3.0.0'
 const STATIC_CACHE = `dc-static-${VERSION}`
 const RUNTIME_CACHE = `dc-runtime-${VERSION}`
 const APP_SHELL = [

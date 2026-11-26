@@ -76,6 +76,75 @@ CREATE TABLE IF NOT EXISTS usage_logs (
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- V3：用户自带模型密钥与上下文偏好
+CREATE TABLE IF NOT EXISTS user_ai_settings (
+    user_id             BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    provider            VARCHAR(32) NOT NULL DEFAULT 'deepseek',
+    base_url            TEXT NOT NULL DEFAULT 'https://api.deepseek.com',
+    api_key_encrypted   TEXT,
+    key_hint            VARCHAR(16) NOT NULL DEFAULT '',
+    model_chat          VARCHAR(120) NOT NULL DEFAULT 'deepseek-chat',
+    model_reasoner      VARCHAR(120) NOT NULL DEFAULT 'deepseek-reasoner',
+    context_window      INTEGER NOT NULL DEFAULT 128000,
+    max_output_tokens   INTEGER NOT NULL DEFAULT 65536,
+    temperature         DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- V3：记忆库（文件 + 可检索文本）
+CREATE TABLE IF NOT EXISTS memory_items (
+    id          BIGSERIAL PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title       VARCHAR(255) NOT NULL,
+    kind        VARCHAR(32) NOT NULL DEFAULT 'file',
+    mime        VARCHAR(200),
+    size        BIGINT NOT NULL DEFAULT 0,
+    text_chars  INTEGER NOT NULL DEFAULT 0,
+    text_content TEXT NOT NULL DEFAULT '',
+    storage_path TEXT,
+    sha256      VARCHAR(64),
+    tags        JSONB NOT NULL DEFAULT '[]'::jsonb,
+    folder      VARCHAR(255) NOT NULL DEFAULT '',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS memory_cloud (
+    user_id         BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    base_url        TEXT NOT NULL,
+    username        TEXT NOT NULL,
+    password_encrypted TEXT NOT NULL,
+    remote_path     VARCHAR(255) NOT NULL DEFAULT 'dreikanterbot',
+    enabled         BOOLEAN NOT NULL DEFAULT TRUE,
+    last_sync_at    TIMESTAMPTZ,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- V3：声明式插件（只提供提示词/模板，不执行第三方代码）
+CREATE TABLE IF NOT EXISTS plugins (
+    id          BIGSERIAL PRIMARY KEY,
+    owner_id    BIGINT REFERENCES users(id) ON DELETE CASCADE,
+    plugin_key  VARCHAR(80) NOT NULL,
+    name        VARCHAR(120) NOT NULL,
+    version     VARCHAR(40) NOT NULL DEFAULT '1.0.0',
+    description TEXT NOT NULL DEFAULT '',
+    author      VARCHAR(120) NOT NULL DEFAULT '',
+    manifest    JSONB NOT NULL,
+    install_path TEXT,
+    enabled     BOOLEAN NOT NULL DEFAULT TRUE,
+    builtin     BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (owner_id, plugin_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_user_created
+    ON memory_items (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_memory_user_folder
+    ON memory_items (user_id, folder);
+CREATE INDEX IF NOT EXISTS idx_plugins_owner
+    ON plugins (owner_id, created_at DESC);
+
 CREATE INDEX IF NOT EXISTS idx_sessions_user_updated
     ON chat_sessions (user_id, updated_at DESC) WHERE is_deleted = FALSE;
 CREATE INDEX IF NOT EXISTS idx_messages_session_id

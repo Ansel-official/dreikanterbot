@@ -40,10 +40,10 @@ from ..config import settings
 from ..database import get_pool
 from ..deps import CurrentUser, resolve_user_from_token
 from ..serializers import iso, message_public, session_public, user_public
+from ..services.ai_config import AIConfig, get_ai_config
 from ..services.deepseek import (
     DeepSeekError,
     DeepSeekNotConfigured,
-    deepseek_configured,
     stream_completion,
 )
 from ..services.rate_limit import (
@@ -59,8 +59,8 @@ from ..services.usage import log_usage
 router = APIRouter(prefix="/ws", tags=["实时对话"])
 logger = logging.getLogger(__name__)
 
-MAX_CONTENT_CHARS = 20_000
-MAX_ATTACHMENT_TOTAL_CHARS = 60_000
+MAX_CONTENT_CHARS = 500_000
+MAX_ATTACHMENT_TOTAL_CHARS = 2_000_000
 LOCK_TTL_SECONDS = 1800
 VALID_MODES = {"chat", "reasoner"}
 
@@ -178,6 +178,7 @@ class ChatConnection:
         pool = get_pool()
         full_user = await pool.fetchrow("SELECT * FROM users WHERE id = $1", self.user.id)
         quota = await peek_daily_quota(self.user.id, self.user.role)
+        ai_config = await get_ai_config(self.user.id)
         await self.send(
             {
                 "type": "ready",
@@ -185,8 +186,12 @@ class ChatConnection:
                 "server_time": iso(datetime.now(timezone.utc)),
                 "user": user_public(full_user) if full_user else {"id": self.user.id, "username": self.user.username},
                 "quota": quota.to_public(),
-                "model": settings.deepseek_model,
-                "ai_configured": deepseek_configured(),
+                "model": ai_config.model_for("chat"),
+                "ai_configured": ai_config.configured,
+                "ai_source": ai_config.source,
+                "ai_key_hint": ai_config.key_hint,
+                "context_window": ai_config.context_window,
+                "max_output_tokens": ai_config.max_output_tokens,
                 "max_content_chars": MAX_CONTENT_CHARS,
             }
         )
@@ -301,6 +306,16 @@ class ChatConnection:
         if len(content) > MAX_CONTENT_CHARS:
             await self.send_error(f"单条消息最多 {MAX_CONTENT_CHARS} 字符", code="content_too_long")
             return
+
+        ai_config = await get_ai_config(self.user.id)
+        if not ai_config.configured or not ai_config.api_key:
+            await self.send_error(
+                "开始对话前需要配置自己的模型 API Key。前往「设置 → AI 接入」填写，密钥只保存在这台服务器上。",
+                code="api_key_required",
+            )
+            await self.send({"type": "ai_required", "message": "配置 API Key 后才能发送消息"})
+            return
+
         mode_was_explicit = data.get("mode") in VALID_MODES
         requested_mode = _normalise_mode(data.get("mode"))
 
@@ -456,6 +471,7 @@ class ChatConnection:
                 assistant_message_id=assistant_row["id"],
                 lock_owner=lock_owner,
                 mode=mode,
+                ai_config=ai_config,
             )
         )
         self.active_task.add_done_callback(self._on_task_done)
@@ -488,6 +504,7 @@ class ChatConnection:
         assistant_message_id: int,
         lock_owner: str,
         mode: str,
+        ai_config: AIConfig | None = None,
     ) -> None:
         pool = get_pool()
         partial = ""
@@ -505,7 +522,7 @@ class ChatConnection:
                       AND role IN ('user', 'assistant')
                       AND status IN ('complete', 'stopped')
                       AND (content <> '' OR attachments IS NOT NULL)
-                    ORDER BY id DESC LIMIT 500
+                    ORDER BY id DESC LIMIT 10000
                 ) recent
                 ORDER BY id ASC
                 """,
@@ -518,7 +535,7 @@ class ChatConnection:
                 if prompt_content.strip():
                     history.append({"role": row["role"], "content": prompt_content})
 
-            async for event in stream_completion(history, mode=mode):
+            async for event in stream_completion(history, mode=mode, config=ai_config):
                 if event.reasoning:
                     reasoning_partial += event.reasoning
                     await self.send(
@@ -595,7 +612,7 @@ class ChatConnection:
                 assistant_message_id, partial, "error", None, reasoning_partial
             )
             await self.send_error(
-                "服务端未配置 DEEPSEEK_API_KEY，请联系管理员",
+                "模型 API Key 未配置或已失效，请前往「设置 → AI 接入」检查",
                 code="not_configured",
                 message_id=assistant_message_id,
             )

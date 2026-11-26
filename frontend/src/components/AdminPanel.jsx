@@ -229,7 +229,7 @@ export default function AdminPanel({ open, onClose, currentUser }) {
                   </div>
                   <div className="stat-card">
                     <span className="stat-icon">
-                      <Icon name="sparkles" size={18} />
+                      <Icon name="barChart" size={18} />
                     </span>
                     <div className="stat-value">{formatNumber(stats.usage_today)}</div>
                     <div className="stat-label">今日 AI 调用</div>

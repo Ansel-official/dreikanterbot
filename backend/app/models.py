@@ -184,6 +184,35 @@ class ApiKeyCreated(ApiKeyOut):
     key: str
 
 
+class AISettingsUpdate(BaseModel):
+    api_key: str | None = Field(default=None, max_length=500)
+    base_url: str | None = Field(default=None, max_length=500)
+    model_chat: str | None = Field(default=None, max_length=120)
+    model_reasoner: str | None = Field(default=None, max_length=120)
+    context_window: int | None = Field(default=None, ge=4096, le=2_000_000)
+    max_output_tokens: int | None = Field(default=None, ge=256, le=131_072)
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    clear_key: bool = False
+
+
+class PluginToggle(BaseModel):
+    enabled: bool
+
+
+class MemoryUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=255)
+    folder: str | None = Field(default=None, max_length=255)
+    tags: list[str] | None = None
+
+
+class MemoryCloudUpdate(BaseModel):
+    base_url: str = Field(min_length=8, max_length=500)
+    username: str = Field(min_length=1, max_length=200)
+    password: str | None = Field(default=None, max_length=500)
+    remote_path: str = Field(default="dreikanterbot", max_length=255)
+    enabled: bool = True
+
+
 class UsageOut(BaseModel):
     role: Role
     used: int

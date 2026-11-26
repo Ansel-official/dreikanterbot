@@ -1,24 +1,42 @@
-# Dreikanterbot · 极简多端 AI 助手
+# Dreikanterbot 3.0 · 自己的模型，自己的工作台
 
 [![CI](https://github.com/Ansel-official/dreikanterbot/actions/workflows/ci.yml/badge.svg)](https://github.com/Ansel-official/dreikanterbot/actions/workflows/ci.yml)
 
-> 面向团队的极简 AI 对话应用：**PostgreSQL 持久化、WebSocket 流式输出、PWA 多端同步、本地 Whisper 语音输入、JWT + 角色权限、完整 REST API 与一键 Docker 部署**。
+> V3.0：**BYOK 模型接入、128K–2M 上下文、记忆库、声明式插件、Windows / Android 客户端**。对话记录、文件和密钥都留在你自己的服务器上。
 
-本项目是一套可直接部署的生产级脚手架，默认使用 DeepSeek 官方 `deepseek-chat`（128K 上下文），也可以按需替换模型或接入其他 OpenAI 兼容网关。
+这不是一个“免费 AI 聊天站”。从 3.0 起，模型调用必须由用户提供自己的 API Key（或显式开启服务端兜底），
+应用只负责工作台、上下文管理、文件记忆和插件，不代收模型费用。
+
+## V3.0 变化
+
+| 能力 | V3.0 |
+|---|---|
+| 模型接入 | 每个用户在「设置 → AI 接入」填写自己的 Key；服务端加密存储，只返回末四位 |
+| 上下文 | 默认 128K，按 token 预算自动保留；自定义网关最高 2M；输出上限按模型收口 |
+| 记忆库 | 上传 PDF/Word/Excel/PPT/代码/ZIP，保留原文件、全文检索、下载、ZIP 导出/导入 |
+| 个人云端 | 可配置自己的 WebDAV（Nextcloud / 坚果云 / 群晖），上传与拉取 |
+| 插件 | 上传 ZIP 安装声明式提示词包；可启停/卸载；不执行第三方代码 |
+| 客户端 | Windows 便携 EXE（WebView2）+ Android APK（WebView）；首次打开填写服务器地址 |
+| 界面 | 暖灰纸面、编辑式排版、去除紫蓝渐变和“AI 助手”套话；桌面/平板/手机响应式 |
+| 合规 | 记忆库/插件/模型设置均落在自有 PostgreSQL；提供 ICP 备案资料清单，备案本身需主体资料 |
 
 ---
 
 ## 0. 演示
 
-![Dreikanterbot 演示](docs/demo/dreikanterbot-demo.gif)
+![Dreikanterbot 工作台](docs/demo/v3/03-workspace.png)
 
-12 步演示：深度思考、推理进度、文件上传、官方对话导入、继续聊、设备建议与深色模式。截图在 [`docs/demo/screens/`](docs/demo/screens)，无需 API Key 的本地 mock 演示见 [`demo/README.md`](demo/README.md)。
+V3 截图在 [`docs/demo/v3/`](docs/demo/v3/)：登录、接入引导、工作台、记忆库、插件、设置。
+旧版 12 步演示（v2）仍保留在 [`docs/demo/dreikanterbot-demo.gif`](docs/demo/dreikanterbot-demo.gif) 与
+[`docs/demo/screens/`](docs/demo/screens)。本地 mock 演示见 [`demo/README.md`](demo/README.md)，
+V3 正式对话要求每个用户自己的 Key。
 
 ---
 
 ## 目录
 
 - [0. 演示](#0-演示)
+- [V3.0 变化](#v30-变化)
 - [1. 功能清单](#1-功能清单)
 - [2. 系统架构](#2-系统架构)
 - [3. 目录结构](#3-目录结构)
@@ -44,23 +62,29 @@
 | 模块 | 能力 |
 |---|---|
 | 对话 | WebSocket 流式输出、Markdown/表格、代码块复制、停止生成、失败重试（重新发送） |
-| 模式 | 极速（`deepseek-chat`）/ 深度思考（`deepseek-reasoner`）；推理内容流式展示、进度条、可折叠 |
-| 文件 | 对话中直接上传 PDF、DOCX、PPTX、XLSX、CSV、文本、代码与 ZIP；最多 5 个/条，解析为上下文 |
-| 导入 | 导入 DeepSeek 官方导出的 JSON，重建历史并直接「继续聊」；兼容常见 conversations/messages 结构 |
-| 下载 | 安装为 PWA（iPhone/iPad/Android/桌面）；GitHub Release 提供 Web 包与完整部署包 |
-| 持久化 | 用户消息、附件文本与 AI 占位消息同事务落库；生成中每 ~0.75 秒增量落库；断线后生成继续完成 |
+| 模式 | 极速（`deepseek-chat`）/ 推理（`deepseek-reasoner`）；推理内容流式展示、进度条、可折叠 |
+| 模型接入 | 用户自带 Key（BYOK）、自定义 OpenAI 兼容地址、日常/推理模型分设、连接测试 |
+| 上下文 | 128K 起步、最高 2M token 窗口；按 token 预算保留历史，当前问题不截断 |
+| 文件 | 对话中上传 PDF、DOCX、PPTX、XLSX、CSV、文本、代码与 ZIP；单文件 100MB、单条最多 10 个 |
+| 记忆库 | 原文件落盘、全文检索、下载、重命名/文件夹/标签、ZIP 导出与导入 |
+| 个人云端 | WebDAV 配置（密码加密）、测试连接、上传到云端、从云端拉取 |
+| 插件 | ZIP 安装声明式提示词包、启停、卸载；插件不执行代码、不读取对话 |
+| 导入 | 导入 DeepSeek 官方导出的 JSON，重建历史并直接「继续聊」 |
+| 客户端 | Windows 便携 EXE、Android APK；客户端首次启动填写服务器地址，之后直接进入 |
+| 下载 | PWA、GitHub Release 的 Web 包、完整部署包、EXE、APK |
+| 持久化 | 用户消息、附件文本与助手占位消息同事务落库；生成中每 ~0.75 秒增量落库；断线后生成继续完成 |
 | 会话 | 新建、切换、重命名、软删除、回收站恢复、按更新时间排序、消息游标分页 |
-| 导出 | 单会话 / 全量导出为 JSON 或 Markdown，中文不转义；JSON 保留附件与推理字段 |
+| 导出 | 单会话 / 全量导出为 JSON 或 Markdown；JSON 保留附件与推理字段 |
 | 账号 | JWT 登录（30 天）、管理员创建账号、禁用/启用、角色调整、重置密码、修改自己的密码 |
 | 权限 | `admin` / `member` / `guest`；用户列表与账号创建仅管理员 |
 | 配额 | Redis 每日计数：guest 100 次、member 1000 次、admin 不限；聊天与 ASR 共用额度 |
 | 限流 | 登录 IP 60 次/5 分钟 + 同账号 10 次/5 分钟、ASR 20 次/分钟/IP、文件 30 次/分钟/IP、导入 5 次/分钟/IP、WS 会话生成锁 |
 | 语音 | 本地 Whisper（base，中文）转写；浏览器录音、上传、自动回填输入框 |
-| UI | Apple 风格极简界面、SF 系统字体、浅/深色、桌面/平板/手机响应式 |
-| PWA | manifest、Service Worker 静态缓存、离线打开界面、添加到主屏幕、设备建议与安装引导 |
+| UI | 暖灰纸面、编辑式排版、浅/深色、桌面/平板/手机响应式；不再使用通用 AI 产品套话 |
+| PWA | manifest、Service Worker 静态缓存、离线打开界面、添加到主屏幕 |
 | 多端 | 同一账号在电脑/平板/手机登录，全部历史从服务端读取 |
 | 对外接口 | RESTful + 自动 OpenAPI（`/docs`）、个人 API Key、管理员密钥审计 |
-| 运维 | Docker Compose 四服务、一键脚本、健康检查、PostgreSQL 备份脚本、Release 自动打包 |
+| 运维 | Docker Compose、一键脚本、健康检查、PostgreSQL 备份脚本、Release 自动打包 |
 
 ---
 
@@ -131,7 +155,7 @@ dreikanterbot/
 │   │   │   ├── usage.py          # 配额查询
 │   │   │   └── admin.py          # 用户管理、统计、密钥审计
 │   │   └── services/
-│   │       ├── deepseek.py       # 上下文拼接、极速/深度思考、流式推理
+│   │       ├── deepseek.py       # token 预算、上下文拼接、流式推理
 │   │       ├── file_extract.py   # 文件文本提取
 │   │       ├── conversation_import.py # 官方/通用 JSON 对话解析
 │   │       ├── asr.py            # faster-whisper / openai-whisper
@@ -192,7 +216,8 @@ dreikanterbot/
 
 - Linux / macOS / WSL（Windows 也可用 Docker Desktop）
 - Docker Engine 24+ 与 Docker Compose v2
-- 一个 DeepSeek API Key（<https://platform.deepseek.com/api_keys>）
+- **不需要**在服务端放模型 Key：V3 由每个用户在「设置 → AI 接入」填写
+- 如果要让所有用户共用一个 Key，才需要配置 `DEEPSEEK_API_KEY` 并设 `ALLOW_SERVER_KEY_FALLBACK=true`
 - 服务器建议：2 vCPU / 4 GB RAM 起步；启用 Whisper 建议 4 vCPU / 8 GB RAM（首次会下载 ~150 MB base 模型）
 
 ### 4.2 一键部署（推荐）
@@ -207,9 +232,9 @@ chmod +x deploy.sh scripts/backup.sh
 
 1. 从 `.env.example` 生成 `.env`（权限 600）；
 2. 自动生成 `SECRET_KEY`、PostgreSQL 密码、管理员初始密码；
-3. 交互式询问 `DEEPSEEK_API_KEY`（可留空稍后补）；
-4. 校验 Compose 配置、构建镜像、启动四个服务；
-5. 等待 `/api/health` 通过，打印访问地址与管理员账号密码。
+3. 校验 Compose 配置、构建镜像、启动服务；
+4. 等待 `/api/health` 通过，打印访问地址与管理员账号密码；
+5. 登录后每个成员自行填写模型 Key。
 
 默认访问地址：<http://服务器IP/>（或 `APP_PORT` 指定端口）。
 
@@ -220,7 +245,8 @@ chmod +x deploy.sh scripts/backup.sh
 
 ```bash
 cp .env.example .env
-# 必改：DEEPSEEK_API_KEY / SECRET_KEY / POSTGRES_PASSWORD / ADMIN_PASSWORD
+# 必改：SECRET_KEY / POSTGRES_PASSWORD / ADMIN_PASSWORD
+# 模型 Key 不写在服务端；用户登录后在「设置 → AI 接入」填写
 # SECRET_KEY 生成：openssl rand -hex 32
 
 docker compose pull
@@ -248,8 +274,9 @@ curl -X POST http://127.0.0.1/api/auth/bootstrap \
 
 1. 浏览器打开部署域名；
 2. 使用 `.env` 的 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 登录；
-3. 打开右上角 **管理控制台 → 用户 → 创建账号**，为成员分配账号；
-4. 立即在 **设置 → 账号** 修改管理员密码。
+3. 按弹窗提示在 **设置 → AI 接入** 填写自己的模型 Key，点「测试连接」；
+4. 打开右上角 **管理控制台 → 用户 → 创建账号**，为成员分配账号；
+5. 立即在 **设置 → 账号** 修改管理员密码。
 
 登录 API 示例：
 
@@ -290,8 +317,9 @@ docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
 
 | 变量 | 必填 | 默认 | 说明 |
 |---|---|---|---|
-| `DEEPSEEK_API_KEY` | 是（聊天） | — | DeepSeek 官方 Key，仅后端使用，不会下发浏览器 |
-| `SECRET_KEY` | 是 | — | JWT 签名密钥，`openssl rand -hex 32` |
+| `DEEPSEEK_API_KEY` | 否 | — | 仅服务端兜底 Key；默认不启用 |
+| `ALLOW_SERVER_KEY_FALLBACK` | 否 | false | 是否允许没有个人 Key 的用户使用服务端 Key |
+| `SECRET_KEY` | 是 | — | JWT 签名 + 用户 Key 加密派生；`openssl rand -hex 32` |
 | `DATABASE_URL` | 是 | — | asyncpg 连接串；Compose 内会覆盖为 `db:5432` |
 | `REDIS_URL` | 是 | — | Redis 连接串；Compose 内为 `redis:6379/0` |
 | `POSTGRES_USER/PASSWORD/DB` | 是 | chatbot | Compose 数据库初始化参数 |
@@ -305,16 +333,20 @@ docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
 | `BOOTSTRAP_TOKEN` | 否 | — | 设置后 bootstrap 需带 `X-Bootstrap-Token` |
 | `GUEST_DAILY_LIMIT` | 否 | 100 | 访客每日 AI 调用次数 |
 | `MEMBER_DAILY_LIMIT` | 否 | 1000 | 成员每日 AI 调用次数 |
-| `DEEPSEEK_MODEL` | 否 | deepseek-chat | 极速模式模型 |
-| `DEEPSEEK_REASONER_MODEL` | 否 | deepseek-reasoner | 深度思考模式模型 |
-| `DEEPSEEK_MAX_TOKENS` | 否 | 4096 | 极速模式单次回复最大 token |
-| `DEEPSEEK_REASONER_MAX_TOKENS` | 否 | 8192 | 深度思考模式单次回复最大 token |
-| `DEEPSEEK_CONTEXT_CHARS` | 否 | 120000 | 极速模式历史裁剪字符预算 |
-| `DEEPSEEK_REASONER_CONTEXT_CHARS` | 否 | 60000 | 深度思考模式历史裁剪字符预算 |
-| `MAX_FILE_MB` | 否 | 20 | 单个上传文件上限 |
-| `MAX_FILE_TEXT_CHARS` | 否 | 80000 | 单个文件解析文本上限 |
-| `MAX_ATTACHMENT_COUNT` | 否 | 5 | 单条消息附件数上限 |
-| `MAX_IMPORT_MB` | 否 | 20 | DeepSeek 对话导入 JSON 上限 |
+| `DEEPSEEK_MODEL` | 否 | deepseek-chat | 默认日常模型（用户可覆盖） |
+| `DEEPSEEK_REASONER_MODEL` | 否 | deepseek-reasoner | 默认推理模型（用户可覆盖） |
+| `DEEPSEEK_MAX_TOKENS` | 否 | 65536 | 输出上限；实际按模型收口（chat 8192 / reasoner 65536） |
+| `DEFAULT_CONTEXT_WINDOW` | 否 | 128000 | 默认上下文 token 窗口 |
+| `MAX_CONTEXT_WINDOW` | 否 | 2000000 | 允许用户设置的最高窗口（自定义网关） |
+| `MAX_FILE_MB` | 否 | 100 | 单个上传文件上限 |
+| `MAX_FILE_TEXT_CHARS` | 否 | 2000000 | 单个文件解析文本上限 |
+| `MAX_ATTACHMENT_COUNT` | 否 | 10 | 单条消息附件数上限 |
+| `MAX_IMPORT_MB` | 否 | 100 | DeepSeek 对话导入 JSON 上限 |
+| `MEMORY_DIR` | 否 | ./data/memory | 记忆库原文件目录 |
+| `MAX_MEMORY_MB` | 否 | 100 | 单文件记忆库上限 |
+| `MAX_MEMORY_TOTAL_MB` | 否 | 4096 | 每用户记忆库总容量 |
+| `PLUGIN_DIR` | 否 | ./data/plugins | 插件安装目录 |
+| `MAX_PLUGIN_MB` | 否 | 10 | 插件 ZIP 上限 |
 | `SYSTEM_PROMPT` | 否 | 内置 | 系统提示词 |
 | `ASR_ENGINE` | 否 | auto | `auto/faster/openai/disabled` |
 | `ASR_MODEL` | 否 | base | Whisper 模型规格 |
@@ -371,6 +403,18 @@ ReDoc：`/redoc`；OpenAPI JSON：`/openapi.json`。
 | GET | `/api/auth/verify` | 登录 | 校验 token |
 | POST | `/api/auth/logout` | 登录 | JWT 加入黑名单 |
 | POST | `/api/auth/change-password` | 登录 | 修改密码并续签 token |
+| GET/PUT | `/api/settings/ai` | 登录 | 读取/保存用户自己的模型 Key、模型与上下文窗口 |
+| POST | `/api/settings/ai/test` | 登录 | 用当前/临时表单测试连接，不落库 |
+| GET | `/api/memory` | 登录 | 记忆库列表/全文搜索 |
+| POST | `/api/memory/upload` | 登录 | 上传原文件并提取全文 |
+| GET | `/api/memory/{id}/download` | 登录 | 下载原文件 |
+| GET | `/api/memory/export` | 登录 | 整库导出 ZIP |
+| POST | `/api/memory/import` | 登录 | 从 ZIP 导入 |
+| GET/PUT | `/api/memory/cloud` | 登录 | WebDAV 个人云端配置 |
+| POST | `/api/memory/cloud/{test,sync,pull}` | 登录 | 测试/上传/拉取 |
+| GET | `/api/plugins` | 登录 | 内置 + 已安装插件 |
+| POST | `/api/plugins/install` | 登录 | 上传 ZIP 安装声明式插件 |
+| PATCH/DELETE | `/api/plugins/{id}` | 登录 | 启停/卸载 |
 | GET | `/api/sessions` | 登录 | 会话列表，`include_deleted` 可选 |
 | POST | `/api/sessions` | 登录 | 新建空会话（前端通常首条消息时自动创建） |
 | GET | `/api/sessions/{id}` | 登录 | 会话详情 |
@@ -419,19 +463,20 @@ wss://你的域名/ws/chat?token=<JWT>
 ```
 
 - `session_id` 为 `null` 时服务端自动创建会话，并通过 `session_created` 返回。
-- `mode`：`chat`（极速，默认）或 `reasoner`（深度思考，DeepSeek R1）。
-- `attachments`：最多 5 个，文本总计最多 60K 字符；内容会保存到消息并拼进模型上下文。
+- `mode`：`chat`（极速，默认）或 `reasoner`（推理，DeepSeek R1）。
+- `attachments`：最多 10 个，文本总计最多 2M 字符；内容会保存到消息并拼进模型上下文。
 
 服务端 → 客户端：
 
 | type | 说明 |
 |---|---|
-| `ready` | 连接就绪，含 user、quota、model、ai_configured |
+| `ready` | 连接就绪，含 user、quota、model、ai_configured、ai_source、ai_key_hint、context_window |
+| `ai_required` | 没有可用模型 Key，客户端应打开接入设置 |
 | `quota` | 消费后的每日额度 |
 | `session_created` | 新会话已创建（含 `mode`） |
 | `user_message` | 用户消息已落库（含附件元数据；带 `client_id` 替换乐观消息） |
 | `assistant_start` | AI 占位消息已落库（含 `mode`） |
-| `reasoning_delta` | 深度思考增量 `{message_id, content}` |
+| `reasoning_delta` | 推理增量 `{message_id, content}` |
 | `reasoning_done` | 思考阶段结束，携带完整 reasoning |
 | `delta` | 回答流式增量 `{message_id, content}` |
 | `assistant_done` | 完成/停止/失败，携带最终消息、reasoning 与 usage |
@@ -478,7 +523,7 @@ wss://你的域名/ws/chat?token=<JWT>
 | `session_id` | BIGINT FK | 所属会话 |
 | `role` | VARCHAR(16) | user/assistant |
 | `content` | TEXT | 消息正文；流式期间持续更新 |
-| `reasoning` | TEXT | 深度思考内容；仅 reasoner 模式可能非空 |
+| `reasoning` | TEXT | 推理内容；仅 reasoner 模式可能非空 |
 | `mode` | VARCHAR(16) | chat / reasoner |
 | `attachments` | JSONB | 附件元数据与解析文本；API 列表默认不返回 text |
 | `parent_id` | BIGINT FK | 用户消息指向上一条消息；AI 消息指向触发它的用户消息 |
@@ -490,6 +535,10 @@ wss://你的域名/ws/chat?token=<JWT>
 
 - `api_keys`：仅存 SHA-256 摘要，明文创建时展示一次；支持吊销。
 - `usage_logs`：每次聊天/ASR 的 token 与时间，管理员统计与后续计费扩展。
+- `user_ai_settings`：用户模型接入、加密 Key、模型名、上下文窗口、输出上限、温度。
+- `memory_items`：记忆库元数据 + 全文 + 原文件路径 + SHA-256 + 标签/文件夹。
+- `memory_cloud`：WebDAV 地址、账号、加密密码、远端目录、最近同步时间。
+- `plugins`：声明式插件清单、安装路径、启停状态；内置插件在代码中提供。
 
 索引：`(user_id, updated_at)`、`(session_id, id)`、`usage_logs(user_id, created_at)` 等。
 
@@ -516,7 +565,9 @@ pip install -r requirements.txt
 export DATABASE_URL="postgresql://chatbot:你的POSTGRES密码@127.0.0.1:5432/chatbot"
 export REDIS_URL="redis://127.0.0.1:6379/0"
 export WHISPER_CACHE_DIR="./models/whisper"
-# 可选：export DEEPSEEK_API_KEY=...
+export MEMORY_DIR="./data/memory"
+export PLUGIN_DIR="./data/plugins"
+# 不需要服务端模型 Key；登录后在「设置 → AI 接入」填写
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -597,8 +648,16 @@ GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）会在�
 |---|---|---|
 | `dreikanterbot-web-<版本>.zip` | 已构建的 `dist/` | 部署到同源 HTTPS 静态站点，或做二次分发 |
 | `dreikanterbot-deploy-<版本>.zip` | 完整源码 + Compose + Nginx/Cloudflare 文档 | 部署到自己的服务器 |
+| `Dreikanterbot-3.0.0-win-x64.zip` | Windows 便携 EXE（WebView2） | 双击即用，首次填服务器地址 |
+| `Dreikanterbot-3.0.0.apk` | Android WebView 客户端（测试签名） | Android 7+ 侧载安装 |
 
 下载页：<https://github.com/Ansel-official/dreikanterbot/releases>
+
+仓库内也放了当前版本客户端（Release 会再次附加）：
+
+- [Windows 便携版](docs/downloads/Dreikanterbot-3.0.0-win-x64.zip)
+- [Android APK](docs/downloads/Dreikanterbot-3.0.0.apk)
+- [SHA256SUMS](docs/downloads/SHA256SUMS)
 
 ### 10.2 设备建议
 
@@ -614,7 +673,52 @@ GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）会在�
 | macOS | macOS 13+ | Safari 17+ / Chrome |
 | 服务端 | 2 vCPU / 4GB（不含语音）；4 vCPU / 8GB（含 Whisper） | Docker Compose |
 
-> PWA 是当前默认的“安装包”：无需应用商店，iPhone/iPad/Android/桌面都能获得独立图标和全屏体验。原生 APK/IPA/EXE 需要平台签名证书，当前 Release 提供 Web 与部署包。
+> PWA 仍是零安装的首选；EXE/APK 是同一套 Web 工作台的客户端外壳，第一次启动填写服务器地址。
+> Android APK 使用本机 debug keystore 测试签名，可直接侧载；上架应用商店请换成你自己的 keystore。
+
+### 10.3 记忆库与个人云端
+
+- 入口：右上角「记忆库」或侧边栏。
+- 上传后原文件保存在 `MEMORY_DIR/<user_id>/`，数据库保存标题、MIME、大小、SHA-256、全文与标签。
+- 支持搜索标题/全文、按文件夹筛选、下载原文件、删除、整库导出 ZIP、从 ZIP 导入。
+- 个人云端使用 WebDAV：
+  - 地址示例：`https://dav.jianguoyun.com/dav/`；
+  - 账号通常是邮箱，密码是应用密码/令牌，不是登录密码；
+  - 密码用 `SECRET_KEY` 派生密钥加密；
+  - 「上传到云端」把本地记忆库 PUT 到远端目录；「从云端拉取」按 SHA-256 去重后导入。
+- 适合 Nextcloud、坚果云、群晖、Alist 等支持 WebDAV 的服务。
+
+### 10.4 声明式插件
+
+插件不是可执行代码，而是一个 ZIP：
+
+```text
+plugin.json
+README.md
+prompts/notes.md   # 可选
+```
+
+```json
+{
+  "id": "research-notes",
+  "name": "研究笔记",
+  "version": "1.0.0",
+  "description": "把材料整理成可追溯的笔记",
+  "author": "你的名字",
+  "prompts": [
+    { "title": "整理材料", "prompt": "请把下面的材料整理成事实、分歧、判断和待验证问题。\n\n", "mode": "chat" }
+  ]
+}
+```
+
+安装后出现在「插件」面板；Composer 左侧的插件按钮可直接插入模板。服务端只读取 JSON/Markdown/TXT，
+不会执行 JS/Python，也不会读取会话内容。
+
+### 10.5 ICP 备案与合规
+
+仓库提供 [docs/compliance/ICP.md](docs/compliance/ICP.md) 的资料清单和页面占位说明。
+**ICP 备案不能用代码代替**：需要主体证件、域名、境内服务器/接入商备案服务号、负责人核验等真实资料，
+并由域名接入商提交。部署前请先完成备案，再把备案号写进页面页脚。
 
 ---
 
@@ -625,6 +729,9 @@ GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）会在�
 - WebSocket 通过 query `token` 鉴权；校验 Origin；错误 token 返回 4401。
 - CORS 仅允许 `CORS_ORIGINS`；Nginx 安全头含 CSP、HSTS、X-Frame-Options、nosniff、Permissions-Policy。
 - API Key 只存 SHA-256，可随时吊销；管理端看不到明文。
+- 用户模型 Key 使用 SECRET_KEY 派生的 Fernet 密钥加密存储；接口只返回末四位；更换 SECRET_KEY 后需重新填写。
+- 记忆库/插件路径按 user_id 隔离，插件包只允许 JSON/Markdown/TXT，拒绝路径穿越与可执行文件。
+- 默认 `ALLOW_SERVER_KEY_FALLBACK=false`：没有个人 Key 的用户无法发起模型调用，不会静默消耗服务端额度。
 - 登录限流、ASR IP 限速、每日配额、会话生成锁；上游错误不泄露 Key。
 - 上传音频限制 20MB、类型白名单、临时文件用后删除。
 - Docker：后端非 root 用户运行；PostgreSQL/Redis 不映射宿主机端口；仅 frontend 暴露 80/443。
@@ -800,7 +907,7 @@ docker compose up -d
 2. **进程崩溃保护窗口**：助手内容每 ~0.75 秒增量写入，强制杀进程最多丢失不足 1 秒的文本；完成/停止/出错时立即写最终状态。
 3. **JWT 无 refresh token**：30 天内有效；登出会黑名单当前 token，改密/重置密码/禁用会通过 `token_version` 让该用户所有旧 token 失效。
 4. **Whisper CPU 推理**：base 模型在 2–4 vCPU 上单路转写约需数秒；首次请求会下载模型。长音频受 `MAX_AUDIO_MB=20` 限制。
-5. **上下文裁剪**：极速模式默认最多 12 万字符，深度思考模式 6 万字符；超长对话早期内容不会进入模型上下文（但数据库仍完整保存）。
+5. **上下文预算**：V3 按 token 计算，默认窗口 128K（最高 2M）；超出窗口的早期消息不会进入模型上下文，但数据库仍完整保存。
 6. **回收站无自动清理**：软删除会话永久保留，需要时手动写 SQL/管理脚本清理。
 7. **PWA 离线能力**：离线只能打开界面与缓存静态资源；新消息必须联网。Service Worker 不会缓存 API。
 8. **Cloudflare 免费版限速有限**：边缘规则能力随套餐变化，账号级额度以 Redis 为准。
@@ -816,7 +923,7 @@ docker compose up -d
 - [ ] `curl -fsS https://域名/api/health` 返回 `status: ok`
 - [ ] 管理员登录成功，创建 member 账号并能登录
 - [ ] 发送消息：用户气泡立即出现、AI 逐字输出、刷新页面后历史完整
-- [ ] 切换“深度思考”模式：能看到推理进度条与展开/折叠的思考内容
+- [ ] 切换“推理”模式：能看到推理进度条与展开/折叠的推理内容
 - [ ] 上传 PDF/Word/Excel/代码文件：解析成功，模型能引用附件内容
 - [ ] 导入 DeepSeek 官方 JSON：历史重建成功，点“继续聊”能继续上下文
 - [ ] 生成中刷新/切网：重连后消息从服务端恢复，无重复

@@ -15,7 +15,7 @@ from .config import settings
 from .database import close_db, db_healthy, init_db
 from .models import HealthResponse
 from .redis_client import close_redis, init_redis, redis_healthy
-from .routers import admin, asr, auth, chat_ws, files, imports, keys, sessions, usage
+from .routers import admin, ai_settings, asr, auth, chat_ws, files, imports, keys, memory, plugins, sessions, usage
 from .services.asr import engine_name
 from .services.deepseek import deepseek_configured
 
@@ -38,6 +38,9 @@ TAGS_METADATA = [
     {"name": "语音", "description": "本地 Whisper 语音转文字（multipart 上传）。"},
     {"name": "文件", "description": "上传 PDF/Word/Excel/PPT/代码/ZIP 并解析为模型可读文本。"},
     {"name": "导入", "description": "导入 DeepSeek 官方/通用 JSON 对话，导入后可直接继续聊天。"},
+    {"name": "AI 接入", "description": "用户自带模型 API Key、模型选择与最大上下文窗口。"},
+    {"name": "记忆库", "description": "文件上传、全文检索、下载、导出与 WebDAV 个人云端同步。"},
+    {"name": "插件", "description": "声明式插件：提示词/模板包，上传安装、启停，不执行第三方代码。"},
     {"name": "API Key", "description": "为脚本/外部系统创建个人 API Key。"},
     {"name": "管理员", "description": "用户管理、系统统计、密钥审计。仅 admin 角色可用。"},
     {"name": "配额", "description": "每日配额查询与用量历史。"},
@@ -127,6 +130,9 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(auth.router, prefix=settings.api_prefix)
+app.include_router(ai_settings.router, prefix=settings.api_prefix)
+app.include_router(memory.router, prefix=settings.api_prefix)
+app.include_router(plugins.router, prefix=settings.api_prefix)
 app.include_router(sessions.router, prefix=settings.api_prefix)
 app.include_router(keys.router, prefix=settings.api_prefix)
 app.include_router(asr.router, prefix=settings.api_prefix)

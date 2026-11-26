@@ -1,15 +1,15 @@
 {
   "name": "Dreikanterbot",
   "short_name": "Dreikanter",
-  "description": "极简、多端同步的 AI 助手：深度思考、文件导入、语音输入与 DeepSeek 对话导入。",
+  "description": "自带模型 Key 的私人工作台：长上下文对话、记忆库、插件、文件导入与多端同步。",
   "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#f5f5f7",
-  "theme_color": "#0071e3",
+  "background_color": "#f2f0ea",
+  "theme_color": "#b4472f",
   "categories": ["productivity", "utilities"],
   "icons": [
     {
