@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>隐私政策 · Dreikanterbot</title>
+<style>
+  :root{--bg:#0f0f10;--fg:#e6e6e8;--fg2:#a2a2a8;--fg3:#74747a;--line:#26262a;--line2:#303036;--acc:#2563eb;--code:#17171a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);padding:0 20px 72px;
+    font:15px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","HarmonyOS Sans","Microsoft YaHei",sans-serif}
+  .wrap{max-width:760px;margin:0 auto}
+  header{padding:44px 0 22px;border-bottom:1px solid var(--line);margin-bottom:30px}
+  .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--fg3);margin-bottom:10px}
+  h1{font-size:26px;line-height:1.35;margin:0 0 12px;font-weight:600}
+  .meta{font-size:12.5px;color:var(--fg3);line-height:2}
+  .meta b{color:var(--fg2);font-weight:500}
+  h2{font-size:16.5px;margin:38px 0 12px;font-weight:600;padding-left:11px;border-left:3px solid var(--acc);line-height:1.5}
+  p{margin:10px 0}
+  ul,ol{margin:10px 0;padding-left:22px}
+  li{margin:5px 0}
+  a{color:#7aa8ff;text-decoration:none}
+  .lead{border:1px solid var(--line2);border-left:3px solid var(--acc);border-radius:3px;padding:16px 18px;
+    margin:0 0 8px;background:#141417;font-size:14.5px;line-height:1.8}
+  .lead b{color:#fff}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#16161a;color:var(--fg2);font-weight:500;white-space:nowrap}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--code);
+    border:1px solid var(--line2);border-radius:3px;padding:1px 5px;color:#d9d9de}
+  .tag{display:inline-block;border:1px solid #2b3a5c;background:#141a28;color:#8fb2ff;border-radius:2px;
+    padding:1px 6px;font-size:11px;margin-right:4px}
+  .hr{height:1px;background:var(--line);margin:34px 0}
+  footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--fg3);line-height:2}
+  @media (max-width:520px){body{padding:0 15px 56px;font-size:14.5px}h1{font-size:22px}table{font-size:12.5px}th,td{padding:7px 8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Privacy Policy</div>
+  <h1>Dreikanterbot 隐私政策</h1>
+  <div class="meta">
+    <div><b>开发者</b>　Ansel Design（Apsis severs）</div>
+    <div><b>版本</b>　3.1.1　　<b>生效日期</b>　2026-11-26</div>
+    <div><b>形态</b>　可自托管的全栈应用（后端 + 网页前端 + Windows/Android 客户端）</div>
+    <div><b>联系邮箱</b>　<a href="mailto:Anselyoyo@outlook.com">Anselyoyo@outlook.com</a></div>
+  </div>
+</header>
+
+<div class="lead">
+  <b>一句话：你自己的模型，你自己的数据。</b><br>
+  Dreikanterbot 可以跑在你自己的服务器或电脑上。账号、API Key（加密存储）、记忆库都在你自己的数据库里；
+  我们不做数据买卖、不投广告、不接第三方统计 SDK。
+</div>
+
+<h2>一、谁在处理你的数据</h2>
+<ul>
+  <li><b>自己部署自己用</b>（推荐）：所有数据都在你的机器上，开发者无法访问。</li>
+  <li><b>使用他人搭建的实例</b>：实例运营者能看到你提交的内容，请以该运营方公布的政策为准。</li>
+</ul>
+
+<h2>二、收集哪些数据（仅限提供服务所必需）</h2>
+<table>
+  <tr><th>类别</th><th>具体内容</th><th>用途</th><th>存储</th></tr>
+  <tr><td>账号</td><td>用户名、密码（<b>加盐哈希</b>存储，不存明文）</td><td>登录与权限</td><td>你的数据库 <code>users</code></td></tr>
+  <tr><td>模型配置</td><td>你填写的大模型 API Key、BaseURL、默认模型</td><td>代你调用所选的模型厂商</td><td><code>user_ai_settings</code>，Key 字段<b>加密存储</b>（<code>api_key_encrypted</code>）</td></tr>
+  <tr><td>对话</td><td>消息内容、会话标题、分支</td><td>多轮对话与续聊</td><td>按实例配置存数据库或本地</td></tr>
+  <tr><td>记忆库</td><td>你主动让 AI 记住的条目</td><td>跨会话长期记忆</td><td><code>memory_items</code></td></tr>
+  <tr><td>用量</td><td>token 计数、预算消耗</td><td>预算控制与展示</td><td>你的数据库</td></tr>
+  <tr><td>插件配置</td><td>WebDAV 等外部服务的账号密码（启用时才填）</td><td>同步/备份</td><td>密码字段<b>加密存储</b>（<code>password_encrypted</code>）</td></tr>
+</table>
+<p>我们<strong>不收集</strong>：设备标识符、位置、通讯录、相册、剪贴板、应用使用行为埋点。</p>
+
+<h2>三、数据流向</h2>
+<ol>
+  <li>客户端（网页 / Windows / Android）→ 你的后端；</li>
+  <li>后端用**你配置的 Key** 调用你选择的模型厂商（DeepSeek、Moonshot/Kimi 等），把本轮对话上下文发过去；</li>
+  <li>模型返回后存库并回传客户端。</li>
+</ol>
+<p>除此之外没有第三方数据出口。若你启用 WebDAV 同步或插件，数据只发往<strong>你自己填写的地址</strong>。</p>
+<p>⚠️ 调用云端模型时，对话内容会按该厂商的隐私政策处理。处理敏感信息时请自行评估，或改用自有/本地模型端点。</p>
+
+<h2>四、密钥与凭证如何保护</h2>
+<ul>
+  <li>用户密码：加盐哈希，不可逆；</li>
+  <li>模型 API Key、WebDAV 密码：<b>加密后入库</b>，接口不回传明文，前端只显示「已配置」；</li>
+  <li>卸载/删除实例时，直接删除数据库文件即可彻底清除。</li>
+</ul>
+
+<h2>五、你的权利</h2>
+<table>
+  <tr><th>权利</th><th>怎么做</th></tr>
+  <tr><td>查看</td><td>设置页可见账号信息、模型配置摘要、记忆条目、token 用量</td></tr>
+  <tr><td>更正</td><td>设置页直接改；用户名/密码在账号设置里修改</td></tr>
+  <tr><td>删除</td><td>删除单条对话 / 单条记忆；删除账号（管理员 <code>cli.py</code> 支持删除用户）；清库即全部清除</td></tr>
+  <tr><td>导出</td><td>对话与记忆可导出；数据在你自己的库里，可直接备份</td></tr>
+</table>
+
+<h2>六、共享与跨境</h2>
+<p>我们<strong>不出售、不共享</strong>你的数据。由于软件自托管，数据存放位置由部署者决定；
+若你把实例部署在境外服务器，即构成数据的跨境存储，请自行确认合规。</p>
+
+<h2>七、儿童</h2>
+<p>不面向 14 周岁以下儿童单独设计，也不主动收集儿童个人信息。</p>
+
+<h2>八、安全提示</h2>
+<ul>
+  <li>请修改默认管理员口令，启用 HTTPS；</li>
+  <li>不要把 <code>.env</code>、数据库文件提交到公开仓库；</li>
+  <li>多用户实例请按需分配权限，定期备份。</li>
+</ul>
+
+<h2>九、政策变更</h2>
+<p>功能涉及数据处理方式变化时（例如新增云端同步、第三方登录），会先更新本政策并在应用内提示。</p>
+
+<h2>十、联系我们</h2>
+<p>
+  邮箱：<a href="mailto:Anselyoyo@outlook.com">Anselyoyo@outlook.com</a><br>
+  问题反馈：<a href="https://github.com/Ansel-official/dreikanterbot/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a>
+</p>
+<p>15 个工作日内答复。</p>
+
+<div class="hr"></div>
+
+<h2>English Summary</h2>
+<p>
+  Dreikanterbot is a self-hostable, full-stack AI workspace. Accounts, encrypted API keys, conversations and
+  memories are stored in <b>your own</b> database. Passwords are salted-hashed; provider keys and WebDAV
+  passwords are stored encrypted. The app sends requests only to the model providers you configure and to
+  endpoints you enter yourself. No analytics, no ads, no data selling.
+</p>
+
+<footer>
+  <div>Dreikanterbot · <a href="https://github.com/Ansel-official/dreikanterbot" target="_blank" rel="noopener noreferrer">源码仓库</a></div>
+  <div>© 2026 Apsis severs &amp; Ansel Design · MIT License</div>
+</footer>
+
+</div>
+</body>
+</html>
