@@ -123,7 +123,7 @@ def client_for(base_url: str, username: str, password: str) -> httpx.AsyncClient
         auth=_auth(username, password),
         timeout=httpx.Timeout(settings.webdav_timeout_seconds, connect=15.0),
         follow_redirects=True,
-        headers={"User-Agent": "Dreikanterbot/3.0"},
+        headers={"User-Agent": "Dreikanterbot/3.1"},
     )
 
 

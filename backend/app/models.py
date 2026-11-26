@@ -184,13 +184,23 @@ class ApiKeyCreated(ApiKeyOut):
     key: str
 
 
-class AISettingsUpdate(BaseModel):
+class ProviderKeyUpdate(BaseModel):
     api_key: str | None = Field(default=None, max_length=500)
     base_url: str | None = Field(default=None, max_length=500)
+    clear_key: bool = False
+
+
+class AISettingsUpdate(BaseModel):
+    # V3.0 兼容字段：provider + api_key 写入单个 Provider
+    api_key: str | None = Field(default=None, max_length=500)
+    base_url: str | None = Field(default=None, max_length=500)
+    provider: str | None = Field(default=None, max_length=32)
+    # V3.1：按 Provider 分别保存 DeepSeek / Moonshot Key
+    provider_keys: dict[str, ProviderKeyUpdate] | None = None
     model_chat: str | None = Field(default=None, max_length=120)
     model_reasoner: str | None = Field(default=None, max_length=120)
     context_window: int | None = Field(default=None, ge=4096, le=2_000_000)
-    max_output_tokens: int | None = Field(default=None, ge=256, le=131_072)
+    max_output_tokens: int | None = Field(default=None, ge=256, le=1_048_576)
     temperature: float | None = Field(default=None, ge=0, le=2)
     clear_key: bool = False
 

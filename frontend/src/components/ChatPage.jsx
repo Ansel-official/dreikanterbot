@@ -134,7 +134,11 @@ export default function ChatPage({ theme, onToggleTheme }) {
 
   const activeSession = sessions.find((item) => item.id === activeSessionId)
   const title = activeSession?.title || '新对话'
-  const aiReady = Boolean(aiConfig?.configured)
+  const aiReady = Boolean(
+    mode === 'reasoner'
+      ? aiConfig?.reasoner_ready ?? aiConfig?.configured
+      : aiConfig?.chat_ready ?? aiConfig?.configured
+  )
 
   const refreshSessions = useCallback(
     async (silent = true) => {
@@ -210,16 +214,22 @@ export default function ChatPage({ theme, onToggleTheme }) {
           setAiConfig((current) => ({
             ...(current || {}),
             configured: Boolean(event.ai_configured),
+            chat_ready: Boolean(event.ai_ready ?? event.ai_configured),
+            reasoner_ready: Boolean(event.reasoner_ready ?? event.ai_configured),
             source: event.ai_source || current?.source || 'none',
             key_hint: event.ai_key_hint || current?.key_hint || '',
-            model_chat: event.model || current?.model_chat || 'deepseek-chat',
-            context_window: event.context_window || current?.context_window || 128000,
+            provider: event.provider || current?.provider,
+            provider_reasoner: event.provider_reasoner || current?.provider_reasoner,
+            provider_status: event.provider_status || current?.provider_status,
+            model_chat: event.model || current?.model_chat || 'deepseek-flash',
+            model_reasoner: event.model_reasoner || current?.model_reasoner || 'deepseek-v4-pro',
+            context_window: event.context_window || current?.context_window || 1048576,
             max_output_tokens: event.max_output_tokens || current?.max_output_tokens,
           }))
-          if (event.ai_configured === false && !aiWarnedRef.current) {
+          if ((event.ai_configured === false || event.ai_ready === false) && !aiWarnedRef.current) {
             aiWarnedRef.current = true
             setAiOpen(true)
-            toast('先接入模型 API Key，才能开始对话', 'warning')
+            toast('先用对应 Provider 的 API Key 接入模型，才能开始对话', 'warning')
           }
           break
         }
@@ -851,7 +861,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
             </button>
             {aiReady ? (
               <span className="context-chip" title="当前模型的上下文窗口">
-                {formatContextWindow(aiConfig?.context_window || 128000)} 上下文
+                {formatContextWindow(aiConfig?.context_window || 1048576)} 上下文
               </span>
             ) : null}
             <QuotaChip quota={quota} />
@@ -964,7 +974,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
           aiReady={aiReady}
           onOpenAi={() => setAiOpen(true)}
           plugins={plugins}
-          contextWindow={aiConfig?.context_window || 128000}
+          contextWindow={aiConfig?.context_window || 1048576}
           showKeyNotice={messages.length > 0}
         />
       </main>

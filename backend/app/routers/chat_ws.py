@@ -187,11 +187,17 @@ class ChatConnection:
                 "user": user_public(full_user) if full_user else {"id": self.user.id, "username": self.user.username},
                 "quota": quota.to_public(),
                 "model": ai_config.model_for("chat"),
+                "model_reasoner": ai_config.model_for("reasoner"),
+                "provider": ai_config.provider_for("chat"),
+                "provider_reasoner": ai_config.provider_for("reasoner"),
                 "ai_configured": ai_config.configured,
+                "ai_ready": ai_config.ready_for("chat"),
+                "reasoner_ready": ai_config.ready_for("reasoner"),
                 "ai_source": ai_config.source,
                 "ai_key_hint": ai_config.key_hint,
                 "context_window": ai_config.context_window,
                 "max_output_tokens": ai_config.max_output_tokens,
+                "provider_status": ai_config.public()["provider_status"],
                 "max_content_chars": MAX_CONTENT_CHARS,
             }
         )
@@ -308,16 +314,38 @@ class ChatConnection:
             return
 
         ai_config = await get_ai_config(self.user.id)
-        if not ai_config.configured or not ai_config.api_key:
-            await self.send_error(
-                "开始对话前需要配置自己的模型 API Key。前往「设置 → AI 接入」填写，密钥只保存在这台服务器上。",
-                code="api_key_required",
-            )
-            await self.send({"type": "ai_required", "message": "配置 API Key 后才能发送消息"})
-            return
-
         mode_was_explicit = data.get("mode") in VALID_MODES
         requested_mode = _normalise_mode(data.get("mode"))
+        if not mode_was_explicit and data.get("session_id") not in (None, ""):
+            try:
+                existing_mode = await get_pool().fetchval(
+                    "SELECT mode FROM chat_sessions WHERE id = $1 AND user_id = $2 AND is_deleted = FALSE",
+                    int(data.get("session_id")),
+                    self.user.id,
+                )
+                if existing_mode:
+                    requested_mode = _normalise_mode(existing_mode)
+            except (TypeError, ValueError):
+                pass
+        if not ai_config.ready_for(requested_mode):
+            provider = ai_config.provider_for(requested_mode)
+            model = ai_config.model_for(requested_mode)
+            await self.send_error(
+                f"当前模型 {model} 所属的 {provider} 还没有 API Key。"
+                "前往「设置 → AI 接入」填写，密钥只保存在这台服务器上。",
+                code="api_key_required",
+                provider=provider,
+                model=model,
+            )
+            await self.send(
+                {
+                    "type": "ai_required",
+                    "message": "配置对应 Provider 的 API Key 后才能发送消息",
+                    "provider": provider,
+                    "model": model,
+                }
+            )
+            return
 
         session_id_raw = data.get("session_id")
         session_id: int | None = None

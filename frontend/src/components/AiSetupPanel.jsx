@@ -8,7 +8,7 @@ export default function AiSetupPanel({ open, onClose, onSaved }) {
       open={open}
       onClose={onClose}
       title="连接模型"
-      subtitle="V3.0 起使用你自己的 API Key；上下文可以拉满"
+      subtitle="DeepSeek 与月之暗面 Kimi；两个 Key 可以同时保存"
       size="lg"
     >
       <div className="ai-setup-intro">

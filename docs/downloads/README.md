@@ -1,11 +1,11 @@
 # 客户端下载
 
-这些文件随仓库提供，也会由 Release 工作流附加到 GitHub Release。
+这些文件随仓库提供，也会由 Release 工作流附加到 GitHub Release，并同步到 Gitee Release。
 
 | 文件 | 平台 | 说明 |
 |---|---|---|
-| `Dreikanterbot-3.0.0-win-x64.zip` | Windows 10/11 x64 | 解压后双击 `Dreikanterbot.exe`；首次填写服务器地址。需要 WebView2 Runtime（Win10/11 通常已装） |
-| `Dreikanterbot-3.0.0.apk` | Android 7+ | 侧载安装；首次填写服务器地址。测试签名，正式上架请换自己的 keystore |
+| `Dreikanterbot-3.1.0-win-x64.zip` | Windows 10/11 x64 | 解压后双击 `Dreikanterbot.exe`；首次填写服务器地址。需要 WebView2 Runtime（Win10/11 通常已装） |
+| `Dreikanterbot-3.1.0.apk` | Android 7+ | 侧载安装；首次填写服务器地址。测试签名，正式上架请换自己的 keystore |
 
 ## 安装前
 
@@ -17,7 +17,7 @@
 ## 校验
 
 ```bash
-sha256sum Dreikanterbot-3.0.0-win-x64.zip Dreikanterbot-3.0.0.apk
+sha256sum Dreikanterbot-3.1.0-win-x64.zip Dreikanterbot-3.1.0.apk
 ```
 
 见 [SHA256SUMS](SHA256SUMS)。

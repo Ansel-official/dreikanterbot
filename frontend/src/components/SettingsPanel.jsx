@@ -239,7 +239,7 @@ export default function SettingsPanel({
                   <div>
                     <h3 className="settings-heading">模型接入</h3>
                     <p className="settings-desc">
-                      你自己的 API Key 决定模型、上下文和费用；V3 默认不在服务端保存可用 Key。
+                      你自己的 API Key 决定模型、上下文和费用；V3.1 支持 DeepSeek 与 Kimi 两个 Provider 分别保存。
                     </p>
                   </div>
                   <button className="btn btn-sm btn-ghost" onClick={onOpenAi}>
@@ -255,7 +255,7 @@ export default function SettingsPanel({
                     <Icon name="check" size={14} />
                     {aiConfig?.configured ? '可对话' : '未接入'}
                   </span>
-                  <span>{aiConfig?.model_chat || 'deepseek-chat'}</span>
+                  <span>{aiConfig?.model_chat || 'deepseek-flash'}</span>
                   <span>{Math.round((aiConfig?.context_window || 128000) / 1000)}K 上下文</span>
                   <span>{aiConfig?.key_hint || '无 Key'}</span>
                 </div>

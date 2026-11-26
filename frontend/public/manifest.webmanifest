@@ -1,15 +1,15 @@
 {
   "name": "Dreikanterbot",
   "short_name": "Dreikanter",
-  "description": "自带模型 Key 的私人工作台：长上下文对话、记忆库、插件、文件导入与多端同步。",
+  "description": "自带 DeepSeek / Kimi Key 的私人工作台：1M 长上下文、记忆库、插件、文件导入与多端同步。",
   "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#f2f0ea",
-  "theme_color": "#b4472f",
+  "background_color": "#f6f8fc",
+  "theme_color": "#2563eb",
   "categories": ["productivity", "utilities"],
   "icons": [
     {

@@ -83,11 +83,13 @@ CREATE TABLE IF NOT EXISTS user_ai_settings (
     base_url            TEXT NOT NULL DEFAULT 'https://api.deepseek.com',
     api_key_encrypted   TEXT,
     key_hint            VARCHAR(16) NOT NULL DEFAULT '',
-    model_chat          VARCHAR(120) NOT NULL DEFAULT 'deepseek-chat',
-    model_reasoner      VARCHAR(120) NOT NULL DEFAULT 'deepseek-reasoner',
-    context_window      INTEGER NOT NULL DEFAULT 128000,
-    max_output_tokens   INTEGER NOT NULL DEFAULT 65536,
+    model_chat          VARCHAR(120) NOT NULL DEFAULT 'deepseek-flash',
+    model_reasoner      VARCHAR(120) NOT NULL DEFAULT 'deepseek-v4-pro',
+    context_window      INTEGER NOT NULL DEFAULT 1048576,
+    max_output_tokens   INTEGER NOT NULL DEFAULT 393216,
     temperature         DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+    -- V3.1：多 Provider Key；JSON 中只存加密值、hint 和 base_url
+    provider_keys       JSONB NOT NULL DEFAULT '{}'::jsonb,
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -168,6 +170,7 @@ ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS mode VARCHAR(16) NOT NULL DEF
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE user_ai_settings ADD COLUMN IF NOT EXISTS provider_keys JSONB NOT NULL DEFAULT '{}'::jsonb;
 """
 
 _pool: asyncpg.Pool | None = None

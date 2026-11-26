@@ -56,14 +56,20 @@ class Settings(BaseSettings):
     # V3 默认要求用户自带 Key（BYOK）。服务端 Key 仅作为可选的兜底，默认关闭。
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_model: str = "deepseek-chat"
-    deepseek_reasoner_model: str = "deepseek-reasoner"
-    deepseek_max_tokens: int = 65536
-    deepseek_reasoner_max_tokens: int = 65536
+    deepseek_model: str = "deepseek-flash"
+    deepseek_reasoner_model: str = "deepseek-v4-pro"
+    deepseek_max_tokens: int = 393_216
+    deepseek_reasoner_max_tokens: int = 393_216
     deepseek_temperature: float = 1.0
-    # 上下文按 token 预算计算；DeepSeek 官方模型为 128K。
-    default_context_window: int = 128_000
+    # 上下文按 token 预算计算；DeepSeek V4 官方窗口为 1M。
+    default_context_window: int = 1_048_576
     max_context_window: int = 2_000_000
+
+    # ---- 月之暗面 Kimi ----
+    moonshot_api_key: str = ""
+    moonshot_base_url: str = "https://api.moonshot.cn/v1"
+    moonshot_model: str = "kimi-k2.6"
+    moonshot_reasoner_model: str = "kimi-k3"
     allow_server_key_fallback: bool = False
     deepseek_timeout_seconds: int = 300
     system_prompt: str = DEFAULT_SYSTEM_PROMPT

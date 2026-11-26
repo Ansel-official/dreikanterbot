@@ -79,13 +79,19 @@ def _server_config() -> AIConfig:
     )
 
 
-def get_client(config: AIConfig | None = None) -> AsyncOpenAI:
-    config = config or _server_config()
-    if not config.api_key or config.api_key.strip() in _PLACEHOLDER_KEYS:
+def get_client(
+    api_key: str | None = None,
+    base_url: str | None = None,
+) -> AsyncOpenAI:
+    if not api_key:
+        server = _server_config()
+        api_key = server.api_key
+        base_url = base_url or server.base_url
+    if not api_key or api_key.strip() in _PLACEHOLDER_KEYS:
         raise DeepSeekNotConfigured("尚未配置模型 API Key，请先在设置 → AI 接入中填写")
     return AsyncOpenAI(
-        api_key=config.api_key,
-        base_url=(config.base_url or "https://api.deepseek.com").rstrip("/"),
+        api_key=api_key,
+        base_url=(base_url or "https://api.deepseek.com").rstrip("/"),
         timeout=httpx.Timeout(
             connect=15.0,
             read=float(settings.deepseek_timeout_seconds),
@@ -228,13 +234,19 @@ def build_context(
     )
 
 
-async def test_connection(config: AIConfig) -> dict:
+async def test_connection(config: AIConfig, mode: str = "chat") -> dict:
     """最小化真实调用，验证 Key / 地址 / 模型是否可用。"""
+    credential = config.credential_for(mode)
+    if not credential:
+        raise DeepSeekNotConfigured(
+            f"{config.provider_for(mode)} 尚未配置 API Key，请先在设置 → AI 接入中填写"
+        )
     started = time.monotonic()
-    client = get_client(config)
+    client = get_client(credential["api_key"], credential["base_url"])
+    model = config.model_for(mode)
     try:
         response = await client.chat.completions.create(
-            model=config.model_for("chat"),
+            model=model,
             messages=[{"role": "user", "content": "ping"}],
             max_tokens=8,
             temperature=0,
@@ -247,7 +259,8 @@ async def test_connection(config: AIConfig) -> dict:
         return {
             "ok": True,
             "latency_ms": latency,
-            "model": config.model_for("chat"),
+            "model": model,
+            "provider": config.provider_for(mode),
             "message": content[:120] or "连接成功",
         }
     except AuthenticationError as exc:
@@ -274,13 +287,19 @@ async def stream_completion(
 ) -> AsyncIterator[StreamEvent]:
     """把历史交给模型，逐块 yield。config 必须由调用方提供（用户 Key）。"""
     config = config or _server_config()
-    client = get_client(config)
+    credential = config.credential_for(mode)
+    if not credential:
+        raise DeepSeekNotConfigured(
+            f"{config.provider_for(mode)} 尚未配置 API Key，请先在设置 → AI 接入中填写"
+        )
+    client = get_client(credential["api_key"], credential["base_url"])
     model = config.model_for(mode)
     context = build_context(history, mode=mode, config=config)
     max_tokens = config.output_for(mode)
     logger.info(
-        "调用模型 source=%s mode=%s model=%s messages=%s estimated_tokens=%s window=%s output=%s trimmed=%s",
+        "调用模型 source=%s provider=%s mode=%s model=%s messages=%s estimated_tokens=%s window=%s output=%s trimmed=%s",
         config.source,
+        config.provider_for(mode),
         mode,
         model,
         len(context.messages),

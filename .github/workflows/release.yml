@@ -57,10 +57,10 @@ jobs:
 
             - `dreikanterbot-web-*.zip`：构建好的 Web 前端，可部署到任意同源 HTTPS 静态站点。
             - `dreikanterbot-deploy-*.zip`：完整源码 + Docker Compose + Nginx/Cloudflare 部署文件。
-            - `Dreikanterbot-3.0.0-win-x64.zip`：Windows 便携客户端（WebView2）。
-            - `Dreikanterbot-3.0.0.apk`：Android 客户端（测试签名）。
+            - `Dreikanterbot-3.1.0-win-x64.zip`：Windows 便携客户端（WebView2）。
+            - `Dreikanterbot-3.1.0.apk`：Android 客户端（测试签名）。
 
-            V3 起模型调用使用每位用户自己的 API Key；客户端只是外壳，首次启动填写服务器地址。
+            V3.1 起支持 DeepSeek 与 Kimi 双 Provider Key；客户端只是外壳，首次启动填写服务器地址。
             Android APK 为侧载测试签名，上架应用商店请替换 keystore。
           files: |
             dreikanterbot-web-*.zip

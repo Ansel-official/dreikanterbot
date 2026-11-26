@@ -45,7 +45,7 @@ function Welcome({ username, onSuggestion, onImport, onDevice, onMemory, onPlugi
           <Icon name="key" size={18} />
           <span>
             <strong>先接入模型 API Key</strong>
-            <small>支持 DeepSeek 官方或兼容 OpenAI 协议的网关；上下文可以拉到 128K 以上。</small>
+            <small>支持 DeepSeek V4 与 Kimi K3；官方 1M 上下文，兼容网关最高 2M。</small>
           </span>
           <Icon name="chevronRight" size={17} />
         </button>

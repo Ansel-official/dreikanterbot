@@ -4,73 +4,75 @@
    ========================================================================== */
 
 :root {
-  --bg: #f2f0ea;
-  --bg-glow: #e7e2d7;
-  --surface: #fffdf8;
-  --surface-2: #eae6dc;
-  --surface-3: #ded8ca;
-  --sidebar: #e9e5db;
-  --text: #1f1d19;
-  --text-2: #4a463e;
-  --muted: #7a7469;
-  --border: #d9d3c6;
-  --border-strong: #c8c0b0;
-  --accent: #b4472f;
-  --accent-strong: #8f3422;
-  --accent-soft: #f4e3db;
-  --accent-ink: #7e2c1c;
-  --user-bubble: #24221e;
-  --user-bubble-solid: #24221e;
-  --assistant-bubble: #fffdf8;
-  --danger: #b23b32;
-  --danger-strong: #922d26;
-  --danger-soft: #f7e3df;
-  --success: #3f6b4f;
-  --success-soft: #e5efe7;
-  --warning: #9a651e;
-  --warning-soft: #f7ecd8;
-  --code-bg: #1d1c19;
-  --code-head: #2a2823;
-  --shadow-sm: 0 1px 2px rgba(31, 29, 25, 0.05);
-  --shadow-md: 0 14px 40px rgba(31, 29, 25, 0.1);
-  --shadow-lg: 0 30px 80px rgba(31, 29, 25, 0.18);
+  color-scheme: light;
+  --bg: #f6f8fc;
+  --bg-glow: #eef4ff;
+  --surface: #ffffff;
+  --surface-2: #f1f4f9;
+  --surface-3: #e5eaf3;
+  --sidebar: #ffffff;
+  --text: #0b1220;
+  --text-2: #354152;
+  --muted: #6b7688;
+  --border: #e3e8f0;
+  --border-strong: #cdd5e2;
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --accent-soft: #eff5ff;
+  --accent-ink: #1e40af;
+  --user-bubble: #2563eb;
+  --user-bubble-solid: #2563eb;
+  --assistant-bubble: #ffffff;
+  --danger: #d33a3a;
+  --danger-strong: #b42323;
+  --danger-soft: #fdecec;
+  --success: #0f8a5f;
+  --success-soft: #e8f7f0;
+  --warning: #a66a12;
+  --warning-soft: #fff6e5;
+  --code-bg: #0d1524;
+  --code-head: #162238;
+  --shadow-sm: 0 1px 2px rgba(11, 18, 32, 0.05);
+  --shadow-md: 0 14px 40px rgba(11, 18, 32, 0.1);
+  --shadow-lg: 0 30px 80px rgba(11, 18, 32, 0.18);
   --radius: 12px;
   --sidebar-width: 282px;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
-  --font-display: 'Iowan Old Style', 'Palatino Linotype', 'Songti SC', 'Noto Serif SC', Georgia,
-    serif;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Microsoft YaHei', sans-serif;
 }
 
 [data-theme='dark'] {
-  --bg: #151412;
-  --bg-glow: #1b1916;
-  --surface: #1e1c18;
-  --surface-2: #27241f;
-  --surface-3: #322e27;
-  --sidebar: #191714;
-  --text: #eee9df;
-  --text-2: #c8c1b5;
-  --muted: #948c80;
-  --border: #302c26;
-  --border-strong: #423d34;
-  --accent: #e07a5f;
-  --accent-strong: #f0937b;
-  --accent-soft: #35221d;
-  --accent-ink: #f4b8a8;
-  --user-bubble: #e6ddcf;
-  --user-bubble-solid: #e6ddcf;
-  --assistant-bubble: #1e1c18;
-  --danger: #e57367;
-  --danger-strong: #f08b80;
-  --danger-soft: #35201e;
-  --success: #7fb88f;
-  --success-soft: #1c2a21;
-  --warning: #d6a45b;
-  --warning-soft: #2d2417;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 18px 45px rgba(0, 0, 0, 0.38);
-  --shadow-lg: 0 34px 90px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+  --bg: #0a0e15;
+  --bg-glow: #101a2e;
+  --surface: #111722;
+  --surface-2: #172030;
+  --surface-3: #202b3d;
+  --sidebar: #0d121c;
+  --text: #f1f5fb;
+  --text-2: #c6d0df;
+  --muted: #8d99ab;
+  --border: #222d3e;
+  --border-strong: #35445c;
+  --accent: #5b8cff;
+  --accent-strong: #82a7ff;
+  --accent-soft: #12264b;
+  --accent-ink: #b9ccff;
+  --user-bubble: #2f6bff;
+  --user-bubble-solid: #2f6bff;
+  --assistant-bubble: #111722;
+  --danger: #ff7070;
+  --danger-strong: #ff9090;
+  --danger-soft: #3a1b1e;
+  --success: #4fd39a;
+  --success-soft: #102a21;
+  --warning: #e1b15f;
+  --warning-soft: #2f2614;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 18px 45px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 34px 90px rgba(0, 0, 0, 0.65);
 }
 
 body {
@@ -106,7 +108,7 @@ h3,
   flex-direction: column;
   justify-content: space-between;
   padding: 46px 56px 38px;
-  background: var(--sidebar);
+  background: linear-gradient(180deg, var(--bg-glow), var(--surface));
   border-right: 1px solid var(--border);
   overflow: hidden;
 }
@@ -118,9 +120,9 @@ h3,
   bottom: -180px;
   width: 480px;
   height: 480px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
   border-radius: 50%;
-  opacity: 0.6;
+  opacity: 0.75;
   pointer-events: none;
 }
 
@@ -355,10 +357,10 @@ h3,
 }
 
 .brand-mark {
-  background: var(--text);
-  color: var(--surface);
+  background: var(--accent);
+  color: #fff;
   border-radius: 9px;
-  box-shadow: none;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .brand-text strong {
@@ -382,8 +384,8 @@ h3,
 }
 
 .new-chat-icon {
-  background: var(--text);
-  color: var(--surface);
+  background: var(--accent);
+  color: #fff;
 }
 
 .sidebar-search {
@@ -647,8 +649,8 @@ h3,
 }
 
 .mode-switch button.active {
-  background: var(--text);
-  color: var(--surface);
+  background: var(--accent);
+  color: #fff;
 }
 
 .mode-hint {
@@ -853,6 +855,54 @@ h3,
   font-size: 10px;
   color: var(--muted);
   text-align: center;
+}
+
+.provider-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0 20px;
+}
+
+.provider-card {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.provider-card.is-ready {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.provider-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.provider-card-head h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.provider-card-head span:not(.status-pill) {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.provider-card .field {
+  margin-bottom: 9px;
+}
+
+.provider-clear {
+  margin-top: 2px;
+  font-size: 11px;
 }
 
 .ai-form-grid {
@@ -1344,6 +1394,7 @@ h3,
     min-width: 0;
   }
   .ai-form-grid,
+  .provider-grid,
   .plugin-grid,
   .suggestion-grid {
     grid-template-columns: 1fr;

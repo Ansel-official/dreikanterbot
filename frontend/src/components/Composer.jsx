@@ -428,7 +428,7 @@ export default function Composer({
             </div>
           </div>
         </div>
-        <p className="composer-footer">Dreikanterbot V3 · 内容由模型生成，关键结论请核对</p>
+        <p className="composer-footer">Dreikanterbot V3.1 · 内容由模型生成，关键结论请核对</p>
       </div>
       {dragOver ? (
         <div className="drop-overlay">

@@ -5,9 +5,9 @@ import { usePwaInstall } from '../hooks/usePwaInstall'
 import { useToast } from './Toast'
 
 const REPO_URL = 'https://github.com/Ansel-official/dreikanterbot'
-const RELEASE_URL = `${REPO_URL}/releases/download/v3.0.0`
-const WIN_ZIP = `${RELEASE_URL}/Dreikanterbot-3.0.0-win-x64.zip`
-const APK_URL = `${RELEASE_URL}/Dreikanterbot-3.0.0.apk`
+const RELEASE_URL = `${REPO_URL}/releases/download/v3.1.0`
+const WIN_ZIP = `${RELEASE_URL}/Dreikanterbot-3.1.0-win-x64.zip`
+const APK_URL = `${RELEASE_URL}/Dreikanterbot-3.1.0.apk`
 
 const DEVICES = [
   {
