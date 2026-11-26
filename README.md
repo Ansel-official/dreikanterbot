@@ -24,6 +24,8 @@
 
 ## 0. 演示
 
+![Dreikanterbot V3 演示](docs/demo/v3/dreikanterbot-v3.gif)
+
 ![Dreikanterbot 工作台](docs/demo/v3/03-workspace.png)
 
 ![推理过程与回答](docs/demo/v3/08-answer.png)
