@@ -26,7 +26,10 @@
 
 ![Dreikanterbot 工作台](docs/demo/v3/03-workspace.png)
 
-V3 截图在 [`docs/demo/v3/`](docs/demo/v3/)：登录、接入引导、工作台、记忆库、插件、设置。
+![推理过程与回答](docs/demo/v3/08-answer.png)
+
+V3 截图在 [`docs/demo/v3/`](docs/demo/v3/)：登录、接入引导、工作台、记忆库、插件、设置、推理与手机布局。
+本地 mock 演示使用 2M 上下文配置，证明长上下文预算可用；正式使用请填自己的 Key。
 旧版 12 步演示（v2）仍保留在 [`docs/demo/dreikanterbot-demo.gif`](docs/demo/dreikanterbot-demo.gif) 与
 [`docs/demo/screens/`](docs/demo/screens)。本地 mock 演示见 [`demo/README.md`](demo/README.md)，
 V3 正式对话要求每个用户自己的 Key。

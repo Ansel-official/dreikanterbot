@@ -3,7 +3,7 @@ import api, { downloadFromApi, errorMessage } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 import { useChatSocket } from '../hooks/useChatSocket'
 import { useToast } from './Toast'
-import { formatRelativeTime, makeClientId } from '../utils'
+import { formatContextWindow, formatRelativeTime, makeClientId } from '../utils'
 import Sidebar from './Sidebar'
 import MessageList from './MessageList'
 import Composer from './Composer'
@@ -851,12 +851,12 @@ export default function ChatPage({ theme, onToggleTheme }) {
             </button>
             {aiReady ? (
               <span className="context-chip" title="当前模型的上下文窗口">
-                {Math.round((aiConfig?.context_window || 128000) / 1000)}K 上下文
+                {formatContextWindow(aiConfig?.context_window || 128000)} 上下文
               </span>
             ) : null}
             <QuotaChip quota={quota} />
             <button
-              className="icon-btn"
+              className="icon-btn header-optional"
               onClick={() => setImportOpen(true)}
               title="继续 DeepSeek 对话"
               aria-label="继续 DeepSeek 对话"
@@ -864,7 +864,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
               <Icon name="upload" size={18} />
             </button>
             {activeSessionId ? (
-              <details className="export-menu">
+              <details className="export-menu header-optional">
                 <summary className="icon-btn" title="导出当前会话" aria-label="导出当前会话">
                   <Icon name="download" size={18} />
                 </summary>
@@ -899,7 +899,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
               <Icon name="memory" size={18} />
             </button>
             <button
-              className="icon-btn"
+              className="icon-btn header-optional"
               onClick={() => setPluginOpen(true)}
               title="插件"
               aria-label="插件"
@@ -907,7 +907,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
               <Icon name="plug" size={18} />
             </button>
             <button
-              className="icon-btn"
+              className="icon-btn header-optional"
               onClick={() => setDeviceOpen(true)}
               title="下载与设备"
               aria-label="下载与设备"

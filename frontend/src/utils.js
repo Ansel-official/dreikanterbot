@@ -57,6 +57,13 @@ export function formatRelativeTime(value) {
   return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`
 }
 
+export function formatContextWindow(value) {
+  const tokens = Number(value || 0)
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(tokens % 1_000_000 === 0 ? 0 : 1)}M`
+  if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}K`
+  return String(tokens)
+}
+
 export function formatNumber(value) {
   const number = Number(value || 0)
   if (number >= 1_000_000) return `${(number / 1_000_000).toFixed(1)}M`

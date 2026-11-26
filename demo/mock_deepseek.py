@@ -21,7 +21,7 @@ import time
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 app = FastAPI(title="Dreikanterbot demo model")
 
@@ -37,15 +37,15 @@ DEMO_ANSWER = """这是 **Dreikanterbot** 的本地演示回答。
 
 ### 你刚刚看到的三个能力
 
-1. **深度思考**：先流式展示推理过程，完成后再给出答案，推理面板可以折叠。
-2. **文件上下文**：附件会以标签形式附在消息里，解析后的文本会一起进入上下文。
-3. **多端界面**：手机、平板、桌面共用同一套极简对话界面。
+1. **推理模式**：先流式展示推理过程，完成后再给出答案，推理面板可以折叠。
+2. **自己的 Key**：V3 默认 BYOK，每个用户在「设置 → AI 接入」填写自己的 Key，平台不代收模型费用。
+3. **工作台**：记忆库保存原文件和全文，插件提供可复用的提示词模板；手机、平板、桌面共用同一套界面。
 
 ### 当前状态
 
 > 这次演示使用本地 mock 流式模型，不调用真实 DeepSeek API，也不会产生费用。
 >
-> 在服务端配置 `DEEPSEEK_API_KEY` 后，即可切换为官方 `deepseek-chat` / `deepseek-reasoner`。
+> 真实部署时，在「设置 → AI 接入」填写你的 DeepSeek Key，即可切换为官方 `deepseek-chat` / `deepseek-reasoner`。
 
 如果你想继续体验，可以试试左侧的「继续 DeepSeek 对话」或「下载与设备」。"""
 
@@ -55,7 +55,7 @@ ATTACHMENT_ANSWER = """已收到附件，并把它作为本轮上下文的一部
 
 - 文件上传后会先做文本提取，再随消息一起发给模型。
 - 这条回复来自本地 mock 模型，用来演示「文件 + 对话」的完整链路。
-- 真实部署时，把 `DEEPSEEK_BASE_URL` 指回官方地址并配置 API Key 即可。
+- 真实部署时，在「设置 → AI 接入」填写自己的 Key 即可；不需要改服务端环境变量。
 
 > 当前为演示模式，不会调用真实模型。"""
 
@@ -100,6 +100,30 @@ async def chat_completions(request: Request) -> StreamingResponse:
     answer = ATTACHMENT_ANSWER if has_attachment else DEMO_ANSWER
     completion_id = f"chatcmpl-demo-{uuid4().hex[:12]}"
     created = int(time.time())
+
+    # V3 的「测试连接」使用非流式最小请求；这里也必须返回标准 JSON，
+    # 不能把 SSE 当作 chat.completion 返回，否则 OpenAI SDK 解析失败。
+    if not body.get("stream"):
+        message = {
+            "role": "assistant",
+            "content": answer,
+        }
+        if reasoner:
+            message["reasoning_content"] = "".join(REASONING)
+        return JSONResponse(
+            {
+                "id": completion_id,
+                "object": "chat.completion",
+                "created": created,
+                "model": model,
+                "choices": [{"index": 0, "message": message, "finish_reason": "stop"}],
+                "usage": {
+                    "prompt_tokens": max(1, len(last_user) // 4),
+                    "completion_tokens": max(1, len(answer) // 2),
+                    "total_tokens": max(1, len(last_user) // 4 + len(answer) // 2),
+                },
+            }
+        )
 
     async def event_stream():
         def chunk(delta: dict, finish_reason: str | None = None) -> str:

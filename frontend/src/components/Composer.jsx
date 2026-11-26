@@ -3,7 +3,7 @@ import api, { errorMessage } from '../api/client'
 import Icon from './Icons'
 import { useToast } from './Toast'
 import { useMediaRecorder } from '../hooks/useMediaRecorder'
-import { makeClientId } from '../utils'
+import { formatContextWindow, makeClientId } from '../utils'
 
 const MAX_FILES = 10
 const MAX_FILE_MB = 100
@@ -267,7 +267,7 @@ export default function Composer({
             <span className="mode-hint">
               {mode === 'reasoner'
                 ? '先列推理过程，再给结论'
-                : `${Math.round(contextWindow / 1000)}K 上下文 · 低延迟`}
+                : `${formatContextWindow(contextWindow)} 上下文 · 低延迟`}
             </span>
           </div>
 

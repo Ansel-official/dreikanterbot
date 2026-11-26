@@ -1326,6 +1326,23 @@ h3,
 
 /* ---------------------------------------------------------------- 响应式 */
 @media (max-width: 780px) {
+  .header-optional,
+  .header-actions .context-chip,
+  .header-actions .key-status-chip,
+  .header-actions .quota-chip {
+    display: none !important;
+  }
+  .chat-header {
+    gap: 8px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .chat-title-block h1 {
+    font-size: 17px;
+  }
+  .chat-title-block {
+    min-width: 0;
+  }
   .ai-form-grid,
   .plugin-grid,
   .suggestion-grid {
