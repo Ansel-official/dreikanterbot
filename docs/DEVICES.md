@@ -40,4 +40,4 @@ Dreikanterbot 是 **PWA + 响应式 Web**：不需要应用商店，iPhone、iPa
 - 聊天主模型为 DeepSeek 官方 API（`deepseek-chat` / `deepseek-reasoner`）。没有网络或未配置 `DEEPSEEK_API_KEY` 时无法生成回复。
 - 文件导入支持 PDF、DOCX、PPTX、XLSX、CSV、文本、代码与 ZIP 内文本；图片会保留文件信息，但当前文本模型不做视觉识别，也不在服务器上做 OCR。
 - DeepSeek 官方对话导入支持常见 JSON 导出结构；如果官方导出格式发生变化，可在 `backend/app/services/conversation_import.py` 中扩展解析规则。
-- 原生 APK/IPA/EXE 需要各平台签名证书与专门打包；当前发布包是 Web/PWA 与服务器部署包，PWA 已覆盖日常多端使用。
+- V3 提供 Windows WebView2 EXE 与 Android APK 客户端；它们只是工作台外壳，需要先部署服务器。APK 使用测试签名，正式上架请换自己的 keystore；iOS 仍建议使用 PWA。
