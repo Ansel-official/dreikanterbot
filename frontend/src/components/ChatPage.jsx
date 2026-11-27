@@ -70,6 +70,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
   const [memoryOpen, setMemoryOpen] = useState(false)
   const [pluginOpen, setPluginOpen] = useState(false)
   const [aiConfig, setAiConfig] = useState(null)
+  const [reasoningEffort, setReasoningEffort] = useState('high')
   const [plugins, setPlugins] = useState([])
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
@@ -122,10 +123,9 @@ export default function ChatPage({ theme, onToggleTheme }) {
   )
   const currentModelId =
     mode === 'reasoner' ? aiConfig?.model_reasoner : aiConfig?.model_chat
-  const currentModelLabel =
-    aiConfig?.presets?.find((item) => item.id === currentModelId)?.label ||
-    currentModelId ||
-    '选择模型'
+  const currentPreset = aiConfig?.presets?.find((item) => item.id === currentModelId)
+  const currentModelLabel = currentPreset?.label || currentModelId || '选择模型'
+  const currentEfforts = currentPreset?.efforts || []
 
   const refreshSessions = useCallback(
     async (silent = true) => {
@@ -210,9 +210,11 @@ export default function ChatPage({ theme, onToggleTheme }) {
             provider_status: event.provider_status || current?.provider_status,
             model_chat: event.model || current?.model_chat || 'deepseek-flash',
             model_reasoner: event.model_reasoner || current?.model_reasoner || 'deepseek-v4-pro',
+            reasoning_effort: event.reasoning_effort || current?.reasoning_effort || 'high',
             context_window: event.context_window || current?.context_window || 1048576,
             max_output_tokens: event.max_output_tokens || current?.max_output_tokens,
           }))
+          if (event.reasoning_effort) setReasoningEffort(event.reasoning_effort)
           if ((event.ai_configured === false || event.ai_ready === false) && !aiWarnedRef.current) {
             aiWarnedRef.current = true
             setAiOpen(true)
@@ -527,6 +529,9 @@ export default function ChatPage({ theme, onToggleTheme }) {
         if (quotaResponse) setQuota(quotaResponse.data)
         if (aiResponse?.data) {
           setAiConfig(aiResponse.data)
+          if (aiResponse.data.reasoning_effort) {
+            setReasoningEffort(aiResponse.data.reasoning_effort)
+          }
           if (!aiResponse.data.configured) {
             aiWarnedRef.current = true
             setAiOpen(true)
@@ -634,6 +639,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
         content,
         client_id: clientId,
         mode,
+        reasoning_effort: reasoningEffort,
         attachments: attachments.map((item) => ({
           name: item.name,
           size: item.size,
@@ -651,7 +657,7 @@ export default function ChatPage({ theme, onToggleTheme }) {
       }
       return true
     },
-    [aiReady, mode, send, socketStatus, toast]
+    [aiReady, mode, reasoningEffort, send, socketStatus, toast]
   )
 
   const stopGeneration = useCallback(() => {
@@ -678,6 +684,56 @@ export default function ChatPage({ theme, onToggleTheme }) {
     },
     [toast]
   )
+
+  const changeModel = useCallback(
+    async (modelId) => {
+      if (!modelId || modelId === currentModelId) return
+      if (streamingRef.current) {
+        toast('请先停止当前回复，再切换模型', 'warning')
+        return
+      }
+      const field = mode === 'reasoner' ? 'model_reasoner' : 'model_chat'
+      const preset = aiConfig?.presets?.find((item) => item.id === modelId)
+      try {
+        const response = await api.put('/settings/ai', {
+          [field]: modelId,
+          ...(preset
+            ? {
+                context_window: preset.context_window,
+                max_output_tokens: preset.max_output_tokens,
+              }
+            : {}),
+        })
+        setAiConfig(response.data)
+        if (response.data.reasoning_effort) {
+          setReasoningEffort(response.data.reasoning_effort)
+        }
+        const label =
+          response.data.presets?.find((item) => item.id === modelId)?.label || modelId
+        toast(`已切换到 ${label}`, 'success')
+      } catch (error) {
+        toast(errorMessage(error, '切换模型失败'), 'error')
+      }
+    },
+    [currentModelId, mode, toast]
+  )
+
+  useEffect(() => {
+    if (!aiConfig || !reasoningEffort) return
+    if (reasoningEffort === aiConfig.reasoning_effort) return
+    const timer = setTimeout(async () => {
+      try {
+        const response = await api.put('/settings/ai', {
+          reasoning_effort: reasoningEffort,
+        })
+        setAiConfig(response.data)
+      } catch (error) {
+        toast(errorMessage(error, '保存推理强度失败'), 'error')
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reasoningEffort, aiConfig?.reasoning_effort])
 
   const handleImported = useCallback(
     async (sessionId) => {
@@ -936,6 +992,13 @@ export default function ChatPage({ theme, onToggleTheme }) {
           plugins={plugins}
           contextWindow={aiConfig?.context_window || 1048576}
           showKeyNotice={messages.length > 0}
+          models={aiConfig?.presets || []}
+          currentModelId={currentModelId}
+          currentModelLabel={currentModelLabel}
+          onModelChange={changeModel}
+          efforts={currentEfforts}
+          reasoningEffort={reasoningEffort}
+          onEffortChange={setReasoningEffort}
         />
       </main>
 

@@ -3,7 +3,7 @@
 # Usage: powershell -ExecutionPolicy Bypass -File desktop/build.ps1
 param(
     [string]$SdkDir = "E:\toolchain\webview2",
-    [string]$Version = "3.2.0"
+    [string]$Version = "3.3.0"
 )
 
 $ErrorActionPreference = "Stop"

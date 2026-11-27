@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import api, { errorMessage } from '../api/client'
 import Icon from './Icons'
 import { useToast } from './Toast'
@@ -32,6 +32,13 @@ export default function Composer({
   onOpenAi,
   plugins = [],
   showKeyNotice = true,
+  models = [],
+  currentModelId = '',
+  currentModelLabel = '选择模型',
+  onModelChange,
+  efforts = [],
+  reasoningEffort = 'high',
+  onEffortChange,
 }) {
   const toast = useToast()
   const [text, setText] = useState('')
@@ -39,6 +46,25 @@ export default function Composer({
   const [dragOver, setDragOver] = useState(false)
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
+
+  const modelGroups = useMemo(() => {
+    const labels = { deepseek: 'DeepSeek', moonshot: '月之暗面 Kimi', local: '本地模型' }
+    const groups = new Map()
+    for (const model of models) {
+      const provider = model.provider || 'deepseek'
+      if (!groups.has(provider)) {
+        groups.set(provider, { provider, label: labels[provider] || provider, models: [] })
+      }
+      groups.get(provider).models.push(model)
+    }
+    return [...groups.values()]
+  }, [models])
+  const effortIndex = Math.max(0, efforts.indexOf(reasoningEffort))
+  const effortLabel = efforts[effortIndex] === 'max'
+    ? '最高'
+    : efforts[effortIndex] === 'low'
+      ? '低'
+      : '高'
 
   const { supported, recording, uploading, seconds, start, stop, cancel, maxSeconds } =
     useMediaRecorder({
@@ -335,6 +361,66 @@ export default function Composer({
               aria-label="消息内容"
             />
           )}
+
+          <div className="composer-meta">
+            <details className="composer-model-menu">
+              <summary className="composer-pill" title="切换当前模型">
+                <Icon name="bot" size={14} />
+                <span>{currentModelLabel}</span>
+                <Icon name="chevronDown" size={12} />
+              </summary>
+              <div className="menu-panel model-picker-panel">
+                <div className="menu-label">
+                  切换{mode === 'reasoner' ? '深度思考' : '快速回答'}模型
+                </div>
+                {modelGroups.map((group) => (
+                  <div className="model-picker-group" key={group.provider}>
+                    <div className="model-picker-provider">{group.label}</div>
+                    {group.models.map((model) => (
+                      <button
+                        type="button"
+                        key={model.id}
+                        className={`model-picker-item ${model.id === currentModelId ? 'active' : ''}`}
+                        onClick={(event) => {
+                          event.currentTarget.closest('details')?.removeAttribute('open')
+                          onModelChange?.(model.id)
+                        }}
+                        disabled={streaming}
+                      >
+                        <span>{model.label}</span>
+                        {model.id === currentModelId ? <Icon name="check" size={14} /> : null}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </details>
+
+            <div className={`effort-control ${efforts.length ? '' : 'is-disabled'}`}>
+              <Icon name="sliders" size={13} />
+              <span className="effort-label">
+                推理 {efforts.length ? effortLabel : '—'}
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={Math.max(0, efforts.length - 1)}
+                step={1}
+                value={effortIndex}
+                onChange={(event) => {
+                  const next = efforts[Number(event.target.value)]
+                  if (next) onEffortChange?.(next)
+                }}
+                disabled={!efforts.length || streaming}
+                title={
+                  efforts.length
+                    ? '推理强度：低 / 高 / 最高'
+                    : '当前模型不支持推理强度'
+                }
+                aria-label="推理强度"
+              />
+            </div>
+          </div>
 
           <div className="composer-toolbar">
             <div className="composer-tools">

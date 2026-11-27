@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS user_ai_settings (
     context_window      INTEGER NOT NULL DEFAULT 1048576,
     max_output_tokens   INTEGER NOT NULL DEFAULT 393216,
     temperature         DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+    -- V3.3：推理强度；low / high / max，模型不支持时忽略
+    reasoning_effort    VARCHAR(16) NOT NULL DEFAULT 'high',
     -- V3.1：多 Provider Key；JSON 中只存加密值、hint 和 base_url
     provider_keys       JSONB NOT NULL DEFAULT '{}'::jsonb,
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -171,6 +173,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAUL
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 ALTER TABLE user_ai_settings ADD COLUMN IF NOT EXISTS provider_keys JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE user_ai_settings ADD COLUMN IF NOT EXISTS reasoning_effort VARCHAR(16) NOT NULL DEFAULT 'high';
 """
 
 _pool: asyncpg.Pool | None = None

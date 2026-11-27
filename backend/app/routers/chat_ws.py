@@ -40,7 +40,7 @@ from ..config import settings
 from ..database import get_pool
 from ..deps import CurrentUser, resolve_user_from_token
 from ..serializers import iso, message_public, session_public, user_public
-from ..services.ai_config import AIConfig, get_ai_config
+from ..services.ai_config import AIConfig, EFFORT_LEVELS, get_ai_config
 from ..services.deepseek import (
     DeepSeekError,
     DeepSeekNotConfigured,
@@ -197,6 +197,7 @@ class ChatConnection:
                 "ai_key_hint": ai_config.key_hint,
                 "context_window": ai_config.context_window,
                 "max_output_tokens": ai_config.max_output_tokens,
+                "reasoning_effort": ai_config.reasoning_effort,
                 "provider_status": ai_config.public()["provider_status"],
                 "max_content_chars": MAX_CONTENT_CHARS,
             }
@@ -327,6 +328,14 @@ class ChatConnection:
                     requested_mode = _normalise_mode(existing_mode)
             except (TypeError, ValueError):
                 pass
+        requested_effort = data.get("reasoning_effort")
+        if (
+            isinstance(requested_effort, str)
+            and requested_effort in EFFORT_LEVELS
+            and requested_effort in ai_config.efforts_for(requested_mode)
+        ):
+            ai_config.reasoning_effort = requested_effort
+
         if not ai_config.ready_for(requested_mode):
             provider = ai_config.provider_for(requested_mode)
             model = ai_config.model_for(requested_mode)

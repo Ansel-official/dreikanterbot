@@ -167,6 +167,22 @@ MODEL_PRESETS: list[dict] = [
     },
 ]
 
+EFFORT_LEVELS = ("low", "high", "max")
+DEFAULT_EFFORT = "high"
+_EFFORT_MODELS = {
+    "deepseek-flash",
+    "deepseek-v4-pro",
+    "deepseek-v4-flash",
+    "deepseek-v4-flash-vision-exp",
+    "kimi-k2.6",
+    "kimi-k2.7-code",
+    "kimi-k2.7-code-highspeed",
+    "kimi-k3",
+    "kimi-k3.1-pro",
+}
+for _item in MODEL_PRESETS:
+    _item["efforts"] = list(EFFORT_LEVELS) if _item["id"] in _EFFORT_MODELS else []
+
 PRESET_BY_ID = {item["id"]: item for item in MODEL_PRESETS}
 DEFAULT_MODEL = "deepseek-flash"
 DEFAULT_REASONER_MODEL = "deepseek-v4-pro"
@@ -227,6 +243,7 @@ class AIConfig:
     context_window: int
     max_output_tokens: int
     temperature: float
+    reasoning_effort: str = DEFAULT_EFFORT
     provider: str = "deepseek"
     provider_keys: dict[str, dict] = field(default_factory=dict)
     updated_at: datetime | None = None
@@ -244,6 +261,17 @@ class AIConfig:
         if model.startswith("local/"):
             return model[len("local/") :]
         return model
+
+    def efforts_for(self, mode: str) -> list[str]:
+        preset = PRESET_BY_ID.get(self.model_for(mode))
+        return list(preset.get("efforts", [])) if preset else []
+
+    def effort_for(self, mode: str) -> str:
+        """只有模型声明支持 effort 时才发送，避免本地/旧模型报错。"""
+        efforts = self.efforts_for(mode)
+        if self.reasoning_effort in efforts:
+            return self.reasoning_effort
+        return ""
 
     def credential_for(self, mode: str) -> dict | None:
         provider = self.provider_for(mode)
@@ -307,6 +335,9 @@ class AIConfig:
             "context_window": self.context_window,
             "max_output_tokens": self.max_output_tokens,
             "temperature": self.temperature,
+            "reasoning_effort": self.reasoning_effort,
+            "efforts_for_chat": self.efforts_for("chat"),
+            "efforts_for_reasoner": self.efforts_for("reasoner"),
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "presets": MODEL_PRESETS,
             "providers": provider_public(),
@@ -413,6 +444,9 @@ async def get_ai_config(user_id: int, *, row: dict | None = None) -> AIConfig:
     )
     max_output = int((row["max_output_tokens"] if row else settings.deepseek_max_tokens) or 0)
     temperature = float((row["temperature"] if row else settings.deepseek_temperature) or 1.0)
+    reasoning_effort = (row["reasoning_effort"] if row else DEFAULT_EFFORT) or DEFAULT_EFFORT
+    if reasoning_effort not in EFFORT_LEVELS:
+        reasoning_effort = DEFAULT_EFFORT
     provider = provider_for_model(model_chat)
     if provider == "local":
         context_window = min(context_window, 32_768)
@@ -430,6 +464,7 @@ async def get_ai_config(user_id: int, *, row: dict | None = None) -> AIConfig:
         context_window=context_window,
         max_output_tokens=max(max_output, 256),
         temperature=temperature,
+        reasoning_effort=reasoning_effort,
         provider_keys=provider_keys,
         updated_at=row["updated_at"] if row else None,
     )
@@ -524,6 +559,13 @@ async def save_ai_config(user_id: int, payload: dict) -> AIConfig:
         payload.get("temperature", (current["temperature"] if current else settings.deepseek_temperature) or 1.0)
     )
     temperature = max(0.0, min(temperature, 2.0))
+    reasoning_effort = (
+        payload.get("reasoning_effort")
+        or (current["reasoning_effort"] if current else DEFAULT_EFFORT)
+        or DEFAULT_EFFORT
+    )
+    if reasoning_effort not in EFFORT_LEVELS:
+        reasoning_effort = DEFAULT_EFFORT
 
     # 兼容旧列：始终写当前聊天模型所在的 Provider。
     legacy = enc_keys.get(target, {})
@@ -535,8 +577,9 @@ async def save_ai_config(user_id: int, payload: dict) -> AIConfig:
         """
         INSERT INTO user_ai_settings
             (user_id, provider, base_url, api_key_encrypted, key_hint, model_chat,
-             model_reasoner, context_window, max_output_tokens, temperature, provider_keys, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+             model_reasoner, context_window, max_output_tokens, temperature, reasoning_effort,
+             provider_keys, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
         ON CONFLICT (user_id) DO UPDATE SET
             provider = EXCLUDED.provider,
             base_url = EXCLUDED.base_url,
@@ -547,6 +590,7 @@ async def save_ai_config(user_id: int, payload: dict) -> AIConfig:
             context_window = EXCLUDED.context_window,
             max_output_tokens = EXCLUDED.max_output_tokens,
             temperature = EXCLUDED.temperature,
+            reasoning_effort = EXCLUDED.reasoning_effort,
             provider_keys = EXCLUDED.provider_keys,
             updated_at = NOW()
         """,
@@ -560,6 +604,7 @@ async def save_ai_config(user_id: int, payload: dict) -> AIConfig:
         context_window,
         max_output,
         temperature,
+        reasoning_effort,
         enc_keys,
     )
     return await get_ai_config(user_id)
@@ -596,6 +641,9 @@ def preview_ai_config(config: AIConfig, payload: dict) -> AIConfig:
     if provider_for_model(model_chat) == "local":
         context_window = min(context_window, 32_768)
         max_output = min(max_output, 8_192)
+    effort = payload.get("reasoning_effort") or config.reasoning_effort
+    if effort not in EFFORT_LEVELS:
+        effort = DEFAULT_EFFORT
     candidate = replace(
         config,
         provider_keys=provider_keys,
@@ -604,6 +652,7 @@ def preview_ai_config(config: AIConfig, payload: dict) -> AIConfig:
         context_window=context_window,
         max_output_tokens=max_output,
         temperature=float(payload.get("temperature") or config.temperature),
+        reasoning_effort=effort,
         provider=provider_for_model(model_chat),
     )
     candidate.configured = bool(candidate.ready_for("chat") or candidate.ready_for("reasoner"))

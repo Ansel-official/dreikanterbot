@@ -45,6 +45,21 @@ def test_cloud_provider_still_requires_key():
     assert config.ready_for("chat") is False
 
 
+def test_reasoning_effort_only_for_supported_models():
+    cloud = make_config(model_chat="deepseek-flash", reasoning_effort="max")
+    assert cloud.effort_for("chat") == "max"
+    old = make_config(model_chat="deepseek-chat", reasoning_effort="max")
+    assert old.effort_for("chat") == ""
+    local = make_config(
+        provider="local",
+        provider_keys={"local": {"base_url": "http://127.0.0.1:11434/v1"}},
+        model_chat="local/deepseek-r1:8b-6g",
+        model_reasoner="local/deepseek-r1:8b-6g",
+        reasoning_effort="max",
+    )
+    assert local.effort_for("chat") == ""
+
+
 def test_preview_adds_local_provider():
     config = make_config(
         provider="deepseek",

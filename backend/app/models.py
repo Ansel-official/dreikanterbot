@@ -202,6 +202,7 @@ class AISettingsUpdate(BaseModel):
     context_window: int | None = Field(default=None, ge=4096, le=2_000_000)
     max_output_tokens: int | None = Field(default=None, ge=256, le=1_048_576)
     temperature: float | None = Field(default=None, ge=0, le=2)
+    reasoning_effort: str | None = Field(default=None, max_length=16)
     clear_key: bool = False
 
 

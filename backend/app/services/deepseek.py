@@ -319,6 +319,9 @@ async def stream_completion(
             kwargs["stream_options"] = {"include_usage": True}
         if mode == "chat":
             kwargs["temperature"] = config.temperature
+        effort = config.effort_for(mode)
+        if effort:
+            kwargs["extra_body"] = {"reasoning_effort": effort}
         stream = await client.chat.completions.create(**kwargs)
         usage: dict | None = None
         finish_reason: str | None = None

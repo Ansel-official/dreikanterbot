@@ -59,14 +59,14 @@ export default function LoginPage({ theme, onToggleTheme }) {
           <span className="eyebrow">A QUIET WORKSPACE</span>
           <h1>把对话、文件和判断，留在自己手里。</h1>
           <p>
-            不是另一个聊天框。V3.2 把云端模型、本地 Ollama、长上下文、记忆库和插件放在同一个工作台里，
+            不是另一个聊天框。V3.3 把云端模型、本地 Ollama、长上下文、记忆库和插件放在同一个工作台里，
             你带自己的 Key，数据留在自己的服务器。
           </p>
         </div>
 
         <footer className="login-story-foot">
           <span>MIT License</span>
-          <span>V3.2</span>
+          <span>V3.3</span>
           <span>数据存储于你的服务器</span>
         </footer>
       </aside>
@@ -168,7 +168,7 @@ export default function LoginPage({ theme, onToggleTheme }) {
 
         <footer className="login-panel-foot">
           <span>账号由管理员创建</span>
-          <span>Dreikanterbot 3.2</span>
+          <span>Dreikanterbot 3.3</span>
         </footer>
       </main>
     </div>
