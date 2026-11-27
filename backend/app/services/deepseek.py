@@ -243,7 +243,7 @@ async def test_connection(config: AIConfig, mode: str = "chat") -> dict:
         )
     started = time.monotonic()
     client = get_client(credential["api_key"], credential["base_url"])
-    model = config.model_for(mode)
+    model = config.request_model_for(mode)
     try:
         response = await client.chat.completions.create(
             model=model,
@@ -293,7 +293,7 @@ async def stream_completion(
             f"{config.provider_for(mode)} 尚未配置 API Key，请先在设置 → AI 接入中填写"
         )
     client = get_client(credential["api_key"], credential["base_url"])
-    model = config.model_for(mode)
+    model = config.request_model_for(mode)
     context = build_context(history, mode=mode, config=config)
     max_tokens = config.output_for(mode)
     logger.info(
@@ -313,9 +313,10 @@ async def stream_completion(
             "model": model,
             "messages": context.messages,
             "stream": True,
-            "stream_options": {"include_usage": True},
             "max_tokens": max_tokens,
         }
+        if config.provider_for(mode) != "local":
+            kwargs["stream_options"] = {"include_usage": True}
         if mode == "chat":
             kwargs["temperature"] = config.temperature
         stream = await client.chat.completions.create(**kwargs)
@@ -338,7 +339,11 @@ async def stream_completion(
                 if getattr(choice, "finish_reason", None):
                     finish_reason = choice.finish_reason
                 delta = getattr(choice, "delta", None)
-                reasoning = getattr(delta, "reasoning_content", None) if delta else None
+                reasoning = None
+                if delta:
+                    reasoning = getattr(delta, "reasoning_content", None) or getattr(
+                        delta, "reasoning", None
+                    )
                 if reasoning:
                     yield StreamEvent(reasoning=reasoning)
                 content = getattr(delta, "content", None) if delta else None

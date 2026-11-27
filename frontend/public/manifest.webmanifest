@@ -1,7 +1,7 @@
 {
   "name": "Dreikanterbot",
   "short_name": "Dreikanter",
-  "description": "自带 DeepSeek / Kimi Key 的私人工作台：1M 长上下文、记忆库、插件、文件导入与多端同步。",
+  "description": "自带 DeepSeek / Kimi Key 或本机 Ollama 的私人工作台：长上下文、记忆库、插件与多端同步。",
   "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",

@@ -59,8 +59,10 @@ export function formatRelativeTime(value) {
 
 export function formatContextWindow(value) {
   const tokens = Number(value || 0)
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(tokens % 1_000_000 === 0 ? 0 : 1)}M`
-  if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}K`
+  if (tokens >= 1_000_000) {
+    return `${(tokens / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
+  }
+  if (tokens >= 1_024) return `${Math.round(tokens / 1_024)}K`
   return String(tokens)
 }
 

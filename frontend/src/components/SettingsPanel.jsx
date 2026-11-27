@@ -239,7 +239,7 @@ export default function SettingsPanel({
                   <div>
                     <h3 className="settings-heading">模型接入</h3>
                     <p className="settings-desc">
-                      你自己的 API Key 决定模型、上下文和费用；V3.1 支持 DeepSeek 与 Kimi 两个 Provider 分别保存。
+                      云端 Key 或本机 Ollama 都可以；V3.2 支持 DeepSeek、Kimi 与本地模型分别配置。
                     </p>
                   </div>
                   <button className="btn btn-sm btn-ghost" onClick={onOpenAi}>

@@ -35,6 +35,14 @@ PROVIDERS: dict[str, dict] = {
         "key_placeholder": "sk-...",
         "description": "Moonshot 官方 API；Kimi K2.6 / K2.7 Code / K3。",
     },
+    "local": {
+        "id": "local",
+        "label": "本地模型",
+        "base_url": "http://127.0.0.1:11434/v1",
+        "key_placeholder": "无需 Key",
+        "description": "Ollama / LM Studio / vLLM 等 OpenAI 兼容本地服务。",
+        "requires_key": False,
+    },
 }
 
 # 官方模型元数据来自 DeepSeek / Moonshot 的模型目录。
@@ -139,6 +147,24 @@ MODEL_PRESETS: list[dict] = [
         "reasoning": True,
         "description": "Kimi K3.1 Pro，1M 上下文、128K 输出；Moonshot 当前模型。",
     },
+    {
+        "id": "local/deepseek-r1:8b-6g",
+        "label": "DeepSeek R1 8B（本地 6G）",
+        "provider": "local",
+        "context_window": 32_768,
+        "max_output_tokens": 8_192,
+        "reasoning": True,
+        "description": "本机 Ollama 模型，显存优化版；实际能力取决于本机配置。",
+    },
+    {
+        "id": "local/deepseek-r1:8b",
+        "label": "DeepSeek R1 8B（本地）",
+        "provider": "local",
+        "context_window": 32_768,
+        "max_output_tokens": 8_192,
+        "reasoning": True,
+        "description": "本机 Ollama 模型；实际能力取决于本机配置。",
+    },
 ]
 
 PRESET_BY_ID = {item["id"]: item for item in MODEL_PRESETS}
@@ -160,12 +186,19 @@ def clamp_output(value: int | None, model: str = "") -> int:
 
 
 def provider_for_model(model: str) -> str:
-    preset = PRESET_BY_ID.get((model or "").strip())
+    model = (model or "").strip()
+    if model.startswith("local/"):
+        return "local"
+    preset = PRESET_BY_ID.get(model)
     if preset:
         return preset["provider"]
-    if (model or "").lower().startswith("kimi"):
+    if model.lower().startswith("kimi"):
         return "moonshot"
     return "deepseek"
+
+
+def provider_requires_key(provider: str) -> bool:
+    return bool(PROVIDERS.get(provider, {}).get("requires_key", True))
 
 
 def provider_base_url(provider: str) -> str:
@@ -206,9 +239,20 @@ class AIConfig:
     def provider_for(self, mode: str) -> str:
         return provider_for_model(self.model_for(mode))
 
+    def request_model_for(self, mode: str) -> str:
+        model = self.model_for(mode)
+        if model.startswith("local/"):
+            return model[len("local/") :]
+        return model
+
     def credential_for(self, mode: str) -> dict | None:
         provider = self.provider_for(mode)
         data = (self.provider_keys or {}).get(provider) or {}
+        if provider == "local":
+            return {
+                "api_key": data.get("api_key") or "ollama",
+                "base_url": (data.get("base_url") or provider_base_url("local")).rstrip("/"),
+            }
         if data.get("api_key"):
             return {
                 "api_key": data["api_key"],
@@ -227,7 +271,12 @@ class AIConfig:
     def output_for(self, mode: str) -> int:
         model = self.model_for(mode)
         preset = PRESET_BY_ID.get(model)
-        ceiling = int(preset["max_output_tokens"]) if preset else 393_216
+        if preset:
+            ceiling = int(preset["max_output_tokens"])
+        elif provider_for_model(model) == "local":
+            ceiling = 8_192
+        else:
+            ceiling = 393_216
         return max(256, min(self.max_output_tokens or ceiling, ceiling))
 
     def public(self) -> dict:
@@ -235,12 +284,16 @@ class AIConfig:
         for provider, meta in PROVIDERS.items():
             data = (self.provider_keys or {}).get(provider) or {}
             key = data.get("api_key") or (self.api_key if provider == self.provider else "")
+            is_local = provider == "local"
             status[provider] = {
-                "configured": bool(key),
-                "hint": data.get("hint") or (self.key_hint if provider == self.provider else ""),
+                "configured": bool(key) or is_local,
+                "hint": "本地" if is_local else data.get("hint") or (
+                    self.key_hint if provider == self.provider else ""
+                ),
                 "base_url": data.get("base_url") or (
                     self.base_url if provider == self.provider else meta["base_url"]
                 ),
+                "requires_key": provider_requires_key(provider),
             }
         chat = self.credential_for("chat")
         return {
@@ -310,6 +363,13 @@ def _decode_provider_keys(raw: object) -> dict[str, dict]:
     for provider, data in raw.items():
         if provider not in VALID_PROVIDERS or not isinstance(data, dict):
             continue
+        if provider == "local":
+            decoded[provider] = {
+                "api_key": "ollama",
+                "base_url": (data.get("base_url") or provider_base_url("local")).rstrip("/"),
+                "hint": "本地",
+            }
+            continue
         key = decrypt_secret(data.get("encrypted"))
         if not key:
             continue
@@ -354,6 +414,9 @@ async def get_ai_config(user_id: int, *, row: dict | None = None) -> AIConfig:
     max_output = int((row["max_output_tokens"] if row else settings.deepseek_max_tokens) or 0)
     temperature = float((row["temperature"] if row else settings.deepseek_temperature) or 1.0)
     provider = provider_for_model(model_chat)
+    if provider == "local":
+        context_window = min(context_window, 32_768)
+        max_output = min(max_output, 8_192)
     chat_cred = provider_keys.get(provider) or {}
     config = AIConfig(
         configured=False,
@@ -454,6 +517,9 @@ async def save_ai_config(user_id: int, payload: dict) -> AIConfig:
         or (current["max_output_tokens"] if current else settings.deepseek_max_tokens),
         model_chat,
     )
+    if target == "local":
+        context_window = min(context_window, 32_768)
+        max_output = min(max_output, 8_192)
     temperature = float(
         payload.get("temperature", (current["temperature"] if current else settings.deepseek_temperature) or 1.0)
     )
@@ -509,7 +575,13 @@ def preview_ai_config(config: AIConfig, payload: dict) -> AIConfig:
             provider_keys.pop(provider, None)
             continue
         key = (item.get("api_key") or current.get("api_key") or "").strip()
-        if key:
+        if provider == "local":
+            provider_keys[provider] = {
+                "api_key": "ollama",
+                "base_url": (item.get("base_url") or current.get("base_url") or provider_base_url(provider)).rstrip("/"),
+                "hint": "本地",
+            }
+        elif key:
             provider_keys[provider] = {
                 "api_key": key,
                 "base_url": (item.get("base_url") or current.get("base_url") or provider_base_url(provider)).rstrip("/"),
@@ -517,15 +589,20 @@ def preview_ai_config(config: AIConfig, payload: dict) -> AIConfig:
             }
     model_chat = payload.get("model_chat") or config.model_chat
     model_reasoner = payload.get("model_reasoner") or config.model_reasoner
+    context_window = clamp_context(payload.get("context_window") or config.context_window)
+    max_output = clamp_output(
+        payload.get("max_output_tokens") or config.max_output_tokens, model_chat
+    )
+    if provider_for_model(model_chat) == "local":
+        context_window = min(context_window, 32_768)
+        max_output = min(max_output, 8_192)
     candidate = replace(
         config,
         provider_keys=provider_keys,
         model_chat=model_chat,
         model_reasoner=model_reasoner,
-        context_window=clamp_context(payload.get("context_window") or config.context_window),
-        max_output_tokens=clamp_output(
-            payload.get("max_output_tokens") or config.max_output_tokens, model_chat
-        ),
+        context_window=context_window,
+        max_output_tokens=max_output,
         temperature=float(payload.get("temperature") or config.temperature),
         provider=provider_for_model(model_chat),
     )

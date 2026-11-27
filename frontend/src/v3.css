@@ -37,10 +37,9 @@
   --shadow-lg: 0 30px 80px rgba(11, 18, 32, 0.18);
   --radius: 12px;
   --sidebar-width: 282px;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+  --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
-  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Microsoft YaHei', sans-serif;
+  --font-display: var(--font-body);
 }
 
 [data-theme='dark'] {
@@ -141,7 +140,9 @@ h3,
 
 .login-story-copy {
   max-width: 620px;
-  margin: 44px 0 28px;
+  margin-top: auto;
+  margin-bottom: auto;
+  padding: 44px 0 28px;
 }
 
 .eyebrow {
@@ -395,6 +396,28 @@ h3,
   border: 1px solid var(--border);
 }
 
+.session-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.session-content .session-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-time {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 10px;
+  opacity: 0.8;
+}
+
 .session-item.active {
   background: var(--surface);
   border-color: var(--border);
@@ -406,14 +429,19 @@ h3,
 
 .sidebar-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
 }
 
 .side-action {
-  justify-content: flex-start;
-  padding: 8px 9px;
-  font-size: 12px;
+  justify-content: center;
+  padding: 8px 6px;
+  font-size: 11px;
+  border-radius: 8px;
+}
+
+.side-action:hover {
+  background: var(--surface-2);
 }
 
 .side-action:hover {
@@ -475,6 +503,61 @@ h3,
 .context-chip {
   background: var(--surface);
   font-variant-numeric: tabular-nums;
+}
+
+.model-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 190px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.model-chip span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+}
+
+.model-chip.warn .model-chip-dot {
+  background: var(--warning);
+}
+
+.more-menu {
+  position: relative;
+}
+
+.more-menu > summary {
+  list-style: none;
+}
+
+.more-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu-panel-right {
+  right: 0;
+  left: auto;
+}
+
+.menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
 }
 
 /* ---------------------------------------------------------------- 欢迎页 */
@@ -918,6 +1001,10 @@ h3,
   margin: 16px 0 20px;
 }
 
+.provider-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .provider-card {
   padding: 14px;
   border: 1px solid var(--border);
@@ -955,6 +1042,18 @@ h3,
 }
 
 .provider-clear {
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.provider-note {
+  margin: 2px 0 9px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.provider-detect {
   margin-top: 2px;
   font-size: 11px;
 }
@@ -1431,10 +1530,16 @@ h3,
 /* ---------------------------------------------------------------- 响应式 */
 @media (max-width: 780px) {
   .header-optional,
+  .header-actions .connection-badge,
   .header-actions .context-chip,
   .header-actions .key-status-chip,
   .header-actions .quota-chip {
     display: none !important;
+  }
+  .model-chip {
+    max-width: 120px;
+    height: 26px;
+    padding: 0 8px;
   }
   .chat-header {
     gap: 8px;

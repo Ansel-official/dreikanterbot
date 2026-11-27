@@ -3,7 +3,7 @@ import api, { errorMessage } from '../api/client'
 import Icon from './Icons'
 import { useToast } from './Toast'
 import { useMediaRecorder } from '../hooks/useMediaRecorder'
-import { formatContextWindow, makeClientId } from '../utils'
+import { makeClientId } from '../utils'
 
 const MAX_FILES = 10
 const MAX_FILE_MB = 100
@@ -31,7 +31,6 @@ export default function Composer({
   aiReady = true,
   onOpenAi,
   plugins = [],
-  contextWindow = 128000,
   showKeyNotice = true,
 }) {
   const toast = useToast()
@@ -263,11 +262,6 @@ export default function Composer({
                 深度思考
               </button>
             </div>
-            <span className="mode-hint">
-              {mode === 'reasoner'
-                ? '先推理，再给结论'
-                : `${formatContextWindow(contextWindow)} 上下文 · 快速回答`}
-            </span>
           </div>
 
           {attachments.length ? (
@@ -334,7 +328,7 @@ export default function Composer({
               onChange={(event) => setText(event.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder={connected ? (aiReady ? '写下问题、材料或任务…' : '接入模型后开始') : '等待连接…'}
+              placeholder={connected ? (aiReady ? '输入消息' : '接入模型后开始') : '等待连接…'}
               rows={1}
               maxLength={500000}
               disabled={!connected || uploading || !aiReady}
@@ -427,7 +421,6 @@ export default function Composer({
             </div>
           </div>
         </div>
-        <p className="composer-footer">Dreikanterbot V3.1.1 · 内容由模型生成，关键结论请核对</p>
       </div>
       {dragOver ? (
         <div className="drop-overlay">

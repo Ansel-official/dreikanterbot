@@ -35,6 +35,15 @@ const FALLBACK_PROVIDERS = [
     description: 'Moonshot Kimi API',
     models: ['kimi-k2.6', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed', 'kimi-k3', 'kimi-k3.1-pro'],
   },
+  {
+    id: 'local',
+    label: '本地模型',
+    base_url: 'http://127.0.0.1:11434/v1',
+    key_placeholder: '无需 Key',
+    description: 'Ollama / LM Studio / vLLM',
+    models: ['local/deepseek-r1:8b-6g', 'local/deepseek-r1:8b'],
+    requires_key: false,
+  },
 ]
 
 const FALLBACK_MODELS = [
@@ -49,6 +58,8 @@ const FALLBACK_MODELS = [
   { id: 'kimi-k2.7-code-highspeed', label: 'Kimi K2.7 Code HighSpeed', provider: 'moonshot', context_window: 262144, max_output_tokens: 262144, reasoning: true },
   { id: 'kimi-k3', label: 'Kimi K3', provider: 'moonshot', context_window: 1048576, max_output_tokens: 1048576, reasoning: true },
   { id: 'kimi-k3.1-pro', label: 'Kimi K3.1 Pro', provider: 'moonshot', context_window: 1000000, max_output_tokens: 128000, reasoning: true },
+  { id: 'local/deepseek-r1:8b-6g', label: 'DeepSeek R1 8B（本地 6G）', provider: 'local', context_window: 32768, max_output_tokens: 8192, reasoning: true },
+  { id: 'local/deepseek-r1:8b', label: 'DeepSeek R1 8B（本地）', provider: 'local', context_window: 32768, max_output_tokens: 8192, reasoning: true },
 ]
 
 const emptyProviderKeys = () =>
@@ -64,6 +75,7 @@ export default function AiSettingsForm({ onSaved, compact = false }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [detectingLocal, setDetectingLocal] = useState(false)
   const [config, setConfig] = useState(null)
   const [providers, setProviders] = useState(FALLBACK_PROVIDERS)
   const [presets, setPresets] = useState(FALLBACK_MODELS)
@@ -146,6 +158,27 @@ export default function AiSettingsForm({ onSaved, compact = false }) {
           }
         : {}),
     }))
+  }
+
+  async function detectLocalModels() {
+    setDetectingLocal(true)
+    try {
+      const item = form.provider_keys?.local || {}
+      const response = await api.get('/settings/ai/local/models', {
+        params: { base_url: item.base_url || 'http://127.0.0.1:11434/v1' },
+      })
+      const incoming = response.data.models || []
+      setPresets((current) => [
+        ...current.filter((model) => model.provider !== 'local'),
+        ...incoming,
+      ])
+      updateProvider('local', 'base_url', response.data.base_url)
+      toast(`检测到 ${incoming.length} 个本地模型，可在模型列表中选择`, 'success')
+    } catch (error) {
+      toast(errorMessage(error, '未检测到本地模型，请确认 Ollama 已启动'), 'error')
+    } finally {
+      setDetectingLocal(false)
+    }
   }
 
   function payload(clearProvider = null) {
@@ -247,7 +280,7 @@ export default function AiSettingsForm({ onSaved, compact = false }) {
           <p>
             日常：{chatPreset?.label || form.model_chat} · 推理：{reasonerPreset?.label || form.model_reasoner}
             {' · '}
-            {chatReady ? '可以开始对话' : '填写下方对应 Provider 的 Key'}
+            {chatReady ? '可以开始对话' : '选择模型或填写对应 Key'}
             {!reasonerReady ? ' · 推理模型尚未配置 Key' : ''}
           </p>
         </div>
@@ -257,6 +290,7 @@ export default function AiSettingsForm({ onSaved, compact = false }) {
         {providers.map((provider) => {
           const item = form.provider_keys?.[provider.id] || {}
           const status = config?.provider_status?.[provider.id] || {}
+          const keyless = provider.id === 'local' || provider.requires_key === false
           return (
             <section className={`provider-card ${status.configured ? 'is-ready' : ''}`} key={provider.id}>
               <div className="provider-card-head">
@@ -265,23 +299,29 @@ export default function AiSettingsForm({ onSaved, compact = false }) {
                   <span>{provider.description || provider.base_url}</span>
                 </div>
                 <span className={`status-pill ${status.configured ? 'ok' : 'off'}`}>
-                  {status.configured ? `已接入 ${status.hint || ''}` : '未接入'}
+                  {keyless ? '本机' : status.configured ? `已接入 ${status.hint || ''}` : '未接入'}
                 </span>
               </div>
-              <label className="field">
-                <span>API Key</span>
-                <div className="input-wrap">
-                  <Icon name="key" size={16} />
-                  <input
-                    type="password"
-                    value={item.api_key || ''}
-                    onChange={(event) => updateProvider(provider.id, 'api_key', event.target.value)}
-                    placeholder={status.configured ? `已保存 ${status.hint || '••••'}，留空不修改` : provider.key_placeholder}
-                    autoComplete="off"
-                    spellCheck="false"
-                  />
-                </div>
-              </label>
+              {!keyless ? (
+                <label className="field">
+                  <span>API Key</span>
+                  <div className="input-wrap">
+                    <Icon name="key" size={16} />
+                    <input
+                      type="password"
+                      value={item.api_key || ''}
+                      onChange={(event) => updateProvider(provider.id, 'api_key', event.target.value)}
+                      placeholder={status.configured ? `已保存 ${status.hint || '••••'}，留空不修改` : provider.key_placeholder}
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                  </div>
+                </label>
+              ) : (
+                <p className="provider-note">
+                  不需要 API Key。先启动 Ollama，再检测本机已安装的模型。
+                </p>
+              )}
               <label className="field">
                 <span>接口地址</span>
                 <div className="input-wrap">
@@ -293,7 +333,17 @@ export default function AiSettingsForm({ onSaved, compact = false }) {
                   />
                 </div>
               </label>
-              {status.configured ? (
+              {keyless ? (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost provider-detect"
+                  onClick={detectLocalModels}
+                  disabled={detectingLocal || saving}
+                >
+                  {detectingLocal ? <span className="spinner spinner-sm" /> : <Icon name="refresh" size={14} />}
+                  检测本机模型
+                </button>
+              ) : status.configured ? (
                 <button
                   className="btn btn-sm btn-danger-ghost provider-clear"
                   onClick={() => save(provider.id)}
@@ -372,7 +422,7 @@ export default function AiSettingsForm({ onSaved, compact = false }) {
             </div>
           </div>
           <small className="field-hint">
-            DeepSeek V4 / Kimi K3 官方窗口 1M；DeepSeek V3.1 为 128K。历史按 token 预算保留，不截断当前问题。
+            DeepSeek V4 / Kimi K3 官方窗口 1M；本地模型按 32K 收口。历史按 token 预算保留，不截断当前问题。
           </small>
         </div>
 

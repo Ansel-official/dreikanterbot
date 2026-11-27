@@ -3,7 +3,7 @@ import api, { downloadFromApi, errorMessage } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 import { useChatSocket } from '../hooks/useChatSocket'
 import { useToast } from './Toast'
-import { formatContextWindow, formatRelativeTime, makeClientId } from '../utils'
+import { formatRelativeTime, makeClientId } from '../utils'
 import Sidebar from './Sidebar'
 import MessageList from './MessageList'
 import Composer from './Composer'
@@ -41,25 +41,6 @@ function mergeSessions(existing, incoming) {
   incoming.forEach((item) => map.set(item.id, item))
   return [...map.values()].sort(
     (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-  )
-}
-
-function QuotaChip({ quota }) {
-  if (!quota) return null
-  const unlimited = quota.limit == null
-  const low = !unlimited && quota.remaining <= 10
-  return (
-    <div
-      className={`quota-chip ${low ? 'low' : ''}`}
-      title={
-        unlimited
-          ? '管理员账号不限制每日调用次数'
-          : `今日已用 ${quota.used} 次，剩余 ${quota.remaining} 次`
-      }
-    >
-      <Icon name="barChart" size={14} />
-      <span>{unlimited ? '不限量' : `剩余 ${quota.remaining}`}</span>
-    </div>
   )
 }
 
@@ -139,6 +120,12 @@ export default function ChatPage({ theme, onToggleTheme }) {
       ? aiConfig?.reasoner_ready ?? aiConfig?.configured
       : aiConfig?.chat_ready ?? aiConfig?.configured
   )
+  const currentModelId =
+    mode === 'reasoner' ? aiConfig?.model_reasoner : aiConfig?.model_chat
+  const currentModelLabel =
+    aiConfig?.presets?.find((item) => item.id === currentModelId)?.label ||
+    currentModelId ||
+    '选择模型'
 
   const refreshSessions = useCallback(
     async (silent = true) => {
@@ -852,78 +839,61 @@ export default function ChatPage({ theme, onToggleTheme }) {
           <div className="header-actions">
             <ConnectionBadge status={socketStatus} />
             <button
-              className={`key-status-chip ${aiReady ? 'ok' : 'warn'}`}
+              className={`model-chip ${aiReady ? '' : 'warn'}`}
               onClick={() => setAiOpen(true)}
-              title={aiReady ? `模型已接入 ${aiConfig?.key_hint || ''}` : '尚未配置模型 API Key'}
+              title={`${aiReady ? '当前模型' : '尚未接入模型'} · ${currentModelLabel}`}
             >
-              <Icon name={aiReady ? 'check' : 'key'} size={13} />
-              {aiReady ? '已接入' : '接模型'}
+              <span className="model-chip-dot" />
+              <span>{currentModelLabel}</span>
             </button>
-            {aiReady ? (
-              <span className="context-chip" title="当前模型的上下文窗口">
-                {formatContextWindow(aiConfig?.context_window || 1048576)} 上下文
-              </span>
-            ) : null}
-            <QuotaChip quota={quota} />
-            <button
-              className="icon-btn header-optional"
-              onClick={() => setImportOpen(true)}
-              title="继续 DeepSeek 对话"
-              aria-label="继续 DeepSeek 对话"
-            >
-              <Icon name="upload" size={18} />
-            </button>
-            {activeSessionId ? (
-              <details className="export-menu header-optional">
-                <summary className="icon-btn" title="导出当前会话" aria-label="导出当前会话">
-                  <Icon name="download" size={18} />
-                </summary>
-                <div className="menu-panel">
-                  <button
-                    onClick={(event) => {
-                      event.currentTarget.closest('details')?.removeAttribute('open')
-                      downloadCurrent('markdown')
-                    }}
-                  >
-                    <Icon name="fileText" size={15} />
-                    导出 Markdown
-                  </button>
-                  <button
-                    onClick={(event) => {
-                      event.currentTarget.closest('details')?.removeAttribute('open')
-                      downloadCurrent('json')
-                    }}
-                  >
-                    <Icon name="database" size={15} />
-                    导出 JSON
-                  </button>
-                </div>
-              </details>
-            ) : null}
-            <button
-              className="icon-btn"
-              onClick={() => setMemoryOpen(true)}
-              title="记忆库"
-              aria-label="记忆库"
-            >
-              <Icon name="memory" size={18} />
-            </button>
-            <button
-              className="icon-btn header-optional"
-              onClick={() => setPluginOpen(true)}
-              title="插件"
-              aria-label="插件"
-            >
-              <Icon name="plug" size={18} />
-            </button>
-            <button
-              className="icon-btn header-optional"
-              onClick={() => setDeviceOpen(true)}
-              title="下载与设备"
-              aria-label="下载与设备"
-            >
-              <Icon name="download" size={18} />
-            </button>
+            <details className="more-menu">
+              <summary className="icon-btn" title="更多" aria-label="更多">
+                <Icon name="dots" size={19} />
+              </summary>
+              <div className="menu-panel menu-panel-right">
+                <button onClick={() => setMemoryOpen(true)}>
+                  <Icon name="memory" size={15} /> 记忆库
+                </button>
+                <button onClick={() => setPluginOpen(true)}>
+                  <Icon name="plug" size={15} /> 插件
+                </button>
+                <button onClick={() => setImportOpen(true)}>
+                  <Icon name="upload" size={15} /> 导入对话
+                </button>
+                <button onClick={() => setDeviceOpen(true)}>
+                  <Icon name="download" size={15} /> 下载与设备
+                </button>
+                {activeSessionId ? (
+                  <>
+                    <div className="menu-divider" />
+                    <button
+                      onClick={(event) => {
+                        event.currentTarget.closest('details')?.removeAttribute('open')
+                        downloadCurrent('markdown')
+                      }}
+                    >
+                      <Icon name="fileText" size={15} /> 导出 Markdown
+                    </button>
+                    <button
+                      onClick={(event) => {
+                        event.currentTarget.closest('details')?.removeAttribute('open')
+                        downloadCurrent('json')
+                      }}
+                    >
+                      <Icon name="database" size={15} /> 导出 JSON
+                    </button>
+                  </>
+                ) : null}
+                {user?.role === 'admin' ? (
+                  <>
+                    <div className="menu-divider" />
+                    <button onClick={() => setAdminOpen(true)}>
+                      <Icon name="shield" size={15} /> 管理控制台
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </details>
             <button
               className="icon-btn"
               onClick={() => setSettingsOpen(true)}
@@ -932,16 +902,6 @@ export default function ChatPage({ theme, onToggleTheme }) {
             >
               <Icon name="settings" size={18} />
             </button>
-            {user?.role === 'admin' ? (
-              <button
-                className="icon-btn"
-                onClick={() => setAdminOpen(true)}
-                title="管理控制台"
-                aria-label="管理控制台"
-              >
-                <Icon name="shield" size={18} />
-              </button>
-            ) : null}
           </div>
         </header>
 

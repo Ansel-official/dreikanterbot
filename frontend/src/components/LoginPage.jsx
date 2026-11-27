@@ -59,38 +59,14 @@ export default function LoginPage({ theme, onToggleTheme }) {
           <span className="eyebrow">A QUIET WORKSPACE</span>
           <h1>把对话、文件和判断，留在自己手里。</h1>
           <p>
-            不是另一个聊天框。V3.1 把 DeepSeek、Kimi、长上下文、记忆库和插件放在同一个工作台里，
+            不是另一个聊天框。V3.2 把云端模型、本地 Ollama、长上下文、记忆库和插件放在同一个工作台里，
             你带自己的 Key，数据留在自己的服务器。
           </p>
         </div>
 
-        <ul className="login-story-list">
-          <li>
-            <span>01</span>
-            <div>
-              <strong>自己的模型</strong>
-              <p>DeepSeek 与 Kimi 官方模型，两个 Key 可同时保存，上下文最高 2M。</p>
-            </div>
-          </li>
-          <li>
-            <span>02</span>
-            <div>
-              <strong>自己的文件</strong>
-              <p>记忆库存原文件与全文，可下载、可导出，也可同步到自己的 WebDAV。</p>
-            </div>
-          </li>
-          <li>
-            <span>03</span>
-            <div>
-              <strong>可带走</strong>
-              <p>Web、Windows、Android 同一套界面；对话和设置不锁在某个平台里。</p>
-            </div>
-          </li>
-        </ul>
-
         <footer className="login-story-foot">
           <span>MIT License</span>
-          <span>V3.1.1</span>
+          <span>V3.2</span>
           <span>数据存储于你的服务器</span>
         </footer>
       </aside>
@@ -192,7 +168,7 @@ export default function LoginPage({ theme, onToggleTheme }) {
 
         <footer className="login-panel-foot">
           <span>账号由管理员创建</span>
-          <span>Dreikanterbot 3.1.1</span>
+          <span>Dreikanterbot 3.2</span>
         </footer>
       </main>
     </div>

@@ -4,8 +4,8 @@
 
 | 文件 | 平台 | 说明 |
 |---|---|---|
-| `Dreikanterbot-3.1.1-win-x64.zip` | Windows 10/11 x64 | 解压后双击 `Dreikanterbot.exe`；首次填写服务器地址。需要 WebView2 Runtime（Win10/11 通常已装） |
-| `Dreikanterbot-3.1.1.apk` | Android 7+ | 侧载安装；首次填写服务器地址。测试签名，正式上架请换自己的 keystore |
+| `Dreikanterbot-3.2.0-win-x64.zip` | Windows 10/11 x64 | 解压后双击 `Dreikanterbot.exe`；首次填写服务器地址。需要 WebView2 Runtime（Win10/11 通常已装） |
+| `Dreikanterbot-3.2.0.apk` | Android 7+ | 侧载安装；首次填写服务器地址。测试签名，正式上架请换自己的 keystore |
 
 ## 安装前
 
@@ -17,7 +17,7 @@
 ## 校验
 
 ```bash
-sha256sum Dreikanterbot-3.1.1-win-x64.zip Dreikanterbot-3.1.1.apk
+sha256sum Dreikanterbot-3.2.0-win-x64.zip Dreikanterbot-3.2.0.apk
 ```
 
 见 [SHA256SUMS](SHA256SUMS)。

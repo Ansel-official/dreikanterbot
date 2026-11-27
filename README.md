@@ -1,12 +1,22 @@
-# Dreikanterbot 3.1.1 · 自己的模型，自己的工作台
+# Dreikanterbot 3.2 · 自己的模型，自己的工作台
 
 [![CI](https://github.com/Ansel-official/dreikanterbot/actions/workflows/ci.yml/badge.svg)](https://github.com/Ansel-official/dreikanterbot/actions/workflows/ci.yml)
 
-> V3.1：**DeepSeek V4 全量模型 + 月之暗面 Kimi、多 Provider Key、1M 上下文、官方 chat-demo 风格界面、记忆库、声明式插件、Windows / Android 客户端**。对话记录、文件和密钥都留在你自己的服务器上。
+> V3.2：**DeepSeek + Kimi + 本机 Ollama、统一无衬线界面、简化信息层级、1M 上下文、记忆库、声明式插件、Windows / Android 客户端**。对话记录、文件和密钥都留在你自己的服务器上。
 
 这不是一个“免费 AI 聊天站”。从 3.0 起，模型调用必须由用户提供自己的 API Key（或显式开启服务端兜底），
 应用只负责工作台、上下文管理、文件记忆和插件，不代收模型费用。V3.1 起 DeepSeek 与 Kimi 的 Key
 可以同时保存、分别计费，互不覆盖。
+
+## V3.2 变化
+
+| 能力 | V3.2 |
+|---|---|
+| 本地模型 | 新增「本地模型」Provider：Ollama / LM Studio / vLLM 的 OpenAI 兼容地址；无需 Key，自动检测本机模型 |
+| 界面 | 全局无衬线字体；侧边栏只保留新建、搜索、会话、记忆库、插件、设置；顶栏合并为一个模型标签 + 更多菜单 |
+| 空场 | 只保留标题、说明和输入框；移除大卡片和重复入口 |
+| 会话 | 会话列表单行标题 + 时间，去掉预览和统计噪音 |
+| 安全 | 本地模型只走用户自己配置的地址；云端 DeepSeek / Kimi Key 仍分别加密保存 |
 
 ## V3.1 变化
 
@@ -17,7 +27,7 @@
 | 多 Provider | 同一个账号分别保存 DeepSeek / Moonshot Key；模型决定 Provider，Key 只用于对应 Provider |
 | 上下文 | 默认 1M，按 token 预算自动保留；自定义网关最高 2M；输出上限按模型收口 |
 | 界面 | 黑白蓝配色，按 DeepSeek 官方的克制、白底、蓝色主操作风格重做；桌面/平板/手机响应式 |
-| 版本 | 后端、Web、Windows EXE、Android APK 统一到 3.1.1；对齐 DeepSeek 官方 chat-demo 的白底蓝调、居中开场与圆角输入区 |
+| 版本 | V3.1.1 对齐 DeepSeek 官方 chat-demo 的白底蓝调、居中开场与圆角输入区；V3.2 在此基础上做减法 |
 
 ## V3.0 变化
 
@@ -36,14 +46,14 @@
 
 ## 0. 演示
 
-![Dreikanterbot V3.1 演示](docs/demo/v31/dreikanterbot-v31.gif)
+![Dreikanterbot V3.2 演示](docs/demo/v32/dreikanterbot-v32.gif)
 
-![Dreikanterbot V3.1 工作台](docs/demo/v31/02-workspace.png)
+![Dreikanterbot V3.2 空场](docs/demo/v32/02-welcome.png)
 
-![DeepSeek 与 Kimi 双 Provider 接入](docs/demo/v31/03-settings-ai.png)
+![本地模型回答](docs/demo/v32/04-local-answer.png)
 
-V3.1 截图在 [`docs/demo/v31/`](docs/demo/v31/)：黑白蓝登录、工作台、双 Provider 接入与手机布局。
-本地 mock 演示使用 1M 上下文配置，证明长上下文预算可用；正式使用请填自己的 Key。
+V3.2 截图在 [`docs/demo/v32/`](docs/demo/v32/)：极简空场、本地 Ollama 对话、手机布局。
+本地演示使用 `deepseek-r1:8b-6g`，不调用云端模型。
 旧版 12 步演示（v2）仍保留在 [`docs/demo/dreikanterbot-demo.gif`](docs/demo/dreikanterbot-demo.gif) 与
 [`docs/demo/screens/`](docs/demo/screens)。本地 mock 演示见 [`demo/README.md`](demo/README.md)，
 V3 正式对话要求每个用户自己的 Key。
@@ -53,6 +63,7 @@ V3 正式对话要求每个用户自己的 Key。
 ## 目录
 
 - [0. 演示](#0-演示)
+- [V3.2 变化](#v32-变化)
 - [V3.1 变化](#v31-变化)
 - [V3.0 变化](#v30-变化)
 - [1. 功能清单](#1-功能清单)
@@ -81,7 +92,8 @@ V3 正式对话要求每个用户自己的 Key。
 |---|---|
 | 对话 | WebSocket 流式输出、Markdown/表格、代码块复制、停止生成、失败重试（重新发送） |
 | 模式 | 极速 / 推理双模式；DeepSeek 与 Kimi 模型可分别担任日常与推理模型；推理内容流式展示、可折叠 |
-| 模型接入 | 用户自带 Key（BYOK）、DeepSeek 与 Moonshot 双 Provider 独立 Key、自定义 OpenAI 兼容地址、连接测试 |
+| 模型接入 | 用户自带 Key（BYOK）、DeepSeek / Moonshot / 本地 Ollama 三 Provider、自定义 OpenAI 兼容地址、连接测试 |
+| 本地模型 | 填写 `http://127.0.0.1:11434/v1` 后一键检测本机模型；不需要 API Key |
 | 上下文 | DeepSeek V4 / Kimi K3 官方 1M，最高 2M token 窗口；按 token 预算保留历史，当前问题不截断 |
 | 文件 | 对话中上传 PDF、DOCX、PPTX、XLSX、CSV、文本、代码与 ZIP；单文件 100MB、单条最多 10 个 |
 | 记忆库 | 原文件落盘、全文检索、下载、重命名/文件夹/标签、ZIP 导出与导入 |
@@ -98,13 +110,13 @@ V3 正式对话要求每个用户自己的 Key。
 | 配额 | Redis 每日计数：guest 100 次、member 1000 次、admin 不限；聊天与 ASR 共用额度 |
 | 限流 | 登录 IP 60 次/5 分钟 + 同账号 10 次/5 分钟、ASR 20 次/分钟/IP、文件 30 次/分钟/IP、导入 5 次/分钟/IP、WS 会话生成锁 |
 | 语音 | 本地 Whisper（base，中文）转写；浏览器录音、上传、自动回填输入框 |
-| UI | 黑白蓝配色、DeepSeek 官方式白底与蓝色主操作、浅/深色、桌面/平板/手机响应式 |
+| UI | 无衬线字体、黑白蓝配色、空场极简、会话单行列表、顶栏合并为模型标签 + 更多菜单 |
 | PWA | manifest、Service Worker 静态缓存、离线打开界面、添加到主屏幕 |
 | 多端 | 同一账号在电脑/平板/手机登录，全部历史从服务端读取 |
 | 对外接口 | RESTful + 自动 OpenAPI（`/docs`）、个人 API Key、管理员密钥审计 |
 | 运维 | Docker Compose、一键脚本、健康检查、PostgreSQL 备份脚本、Release 自动打包 |
 
-### 1.1 模型目录（V3.1）
+### 1.1 模型目录（V3.2）
 
 | Provider | 模型 | 上下文 | 输出上限 | 说明 |
 |---|---|---:|---:|---|
@@ -119,9 +131,23 @@ V3 正式对话要求每个用户自己的 Key。
 | Moonshot | `kimi-k2.7-code-highspeed` | 256K | 256K | 低延迟代码任务 |
 | Moonshot | `kimi-k3` | 1M | 1M | 超长材料 |
 | Moonshot | `kimi-k3.1-pro` | 1M | 128K | K3.1 Pro，Moonshot 当前模型 |
+| 本地 | `local/<模型名>` | 32K | 8K | Ollama / LM Studio / vLLM；无需 Key，设置里检测 |
 
 模型 ID 与能力以官方目录为准；自定义 OpenAI 兼容网关可以在同一套模型 ID 下覆盖接口地址。
 DeepSeek 官方模型目录见 [api-docs.deepseek.com](https://api-docs.deepseek.com/zh-cn/api/list-models)。
+
+### 1.2 本地模型
+
+不需要云端 Key，也不会把对话发到外部：
+
+```bash
+ollama serve
+ollama pull deepseek-r1:8b
+```
+
+然后在「设置 → AI 接入 → 本地模型」填 `http://127.0.0.1:11434/v1`，点「检测本机模型」，
+在「日常模型 / 推理模型」里选择即可。也兼容 LM Studio、vLLM 等 OpenAI 兼容服务。
+本地模型默认按 32K 上下文、8K 输出收口；实际速度取决于显卡与模型大小。
 
 ---
 
@@ -253,7 +279,7 @@ dreikanterbot/
 
 - Linux / macOS / WSL（Windows 也可用 Docker Desktop）
 - Docker Engine 24+ 与 Docker Compose v2
-- **不需要**在服务端放模型 Key：V3.1 由每个用户在「设置 → AI 接入」填写 DeepSeek / Kimi
+- **不需要**在服务端放模型 Key：V3.2 由每个用户在「设置 → AI 接入」填写 DeepSeek / Kimi，或选择本机 Ollama
 - 如果要让所有用户共用一个 Key，才需要配置 `DEEPSEEK_API_KEY` / `MOONSHOT_API_KEY` 并设 `ALLOW_SERVER_KEY_FALLBACK=true`
 - 服务器建议：2 vCPU / 4 GB RAM 起步；启用 Whisper 建议 4 vCPU / 8 GB RAM（首次会下载 ~150 MB base 模型）
 
@@ -445,9 +471,10 @@ ReDoc：`/redoc`；OpenAPI JSON：`/openapi.json`。
 | GET | `/api/auth/verify` | 登录 | 校验 token |
 | POST | `/api/auth/logout` | 登录 | JWT 加入黑名单 |
 | POST | `/api/auth/change-password` | 登录 | 修改密码并续签 token |
-| GET/PUT | `/api/settings/ai` | 登录 | 读取/保存用户自己的模型 Key、模型与上下文窗口；V3.1 支持 `provider_keys.deepseek` / `provider_keys.moonshot` |
+| GET/PUT | `/api/settings/ai` | 登录 | 读取/保存用户自己的模型 Key、模型与上下文窗口；V3.2 支持 `provider_keys.deepseek` / `.moonshot` / `.local` |
 | POST | `/api/settings/ai/test` | 登录 | 用当前/临时表单测试连接，不落库 |
-| GET | `/api/settings/ai/presets` | 公开 | DeepSeek + Kimi 模型目录与能力元数据 |
+| GET | `/api/settings/ai/presets` | 公开 | DeepSeek + Kimi + 本地模型目录与能力元数据 |
+| GET | `/api/settings/ai/local/models` | 登录 | 检测 Ollama / OpenAI 兼容本地模型，`base_url` 可选 |
 | GET | `/api/memory` | 登录 | 记忆库列表/全文搜索 |
 | POST | `/api/memory/upload` | 登录 | 上传原文件并提取全文 |
 | GET | `/api/memory/{id}/download` | 登录 | 下载原文件 |
@@ -486,13 +513,14 @@ ReDoc：`/redoc`；OpenAPI JSON：`/openapi.json`。
 | GET | `/api/health` | 公开 | DB/Redis/DeepSeek/ASR 健康状态 |
 | GET | `/api/version` | 公开 | 版本信息 |
 
-V3.1 的 `/api/settings/ai` 保存示例（Key 只在请求内出现，服务端加密后落库）：
+V3.2 的 `/api/settings/ai` 保存示例（Key 只在请求内出现，服务端加密后落库；`local` 不需要 Key）：
 
 ```json
 {
   "provider_keys": {
     "deepseek": { "api_key": "sk-...", "base_url": "https://api.deepseek.com" },
-    "moonshot": { "api_key": "sk-...", "base_url": "https://api.moonshot.cn/v1" }
+    "moonshot": { "api_key": "sk-...", "base_url": "https://api.moonshot.cn/v1" },
+    "local": { "base_url": "http://127.0.0.1:11434/v1" }
   },
   "model_chat": "deepseek-flash",
   "model_reasoner": "kimi-k3",
@@ -595,7 +623,7 @@ wss://你的域名/ws/chat?token=<JWT>
 - `api_keys`：仅存 SHA-256 摘要，明文创建时展示一次；支持吊销。
 - `usage_logs`：每次聊天/ASR 的 token 与时间，管理员统计与后续计费扩展。
 - `user_ai_settings`：用户模型接入、加密 Key、模型名、上下文窗口、输出上限、温度；
-  V3.1 新增 `provider_keys` JSONB，分别保存 DeepSeek 与 Moonshot 的加密 Key、hint 和 base_url。
+  V3.2 的 `provider_keys` JSONB 分别保存 DeepSeek / Moonshot 的加密 Key、hint 和 base_url，以及本地模型的 base_url。
 - `memory_items`：记忆库元数据 + 全文 + 原文件路径 + SHA-256 + 标签/文件夹。
 - `memory_cloud`：WebDAV 地址、账号、加密密码、远端目录、最近同步时间。
 - `plugins`：声明式插件清单、安装路径、启停状态；内置插件在代码中提供。
@@ -708,8 +736,8 @@ GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）会在�
 |---|---|---|
 | `dreikanterbot-web-<版本>.zip` | 已构建的 `dist/` | 部署到同源 HTTPS 静态站点，或做二次分发 |
 | `dreikanterbot-deploy-<版本>.zip` | 完整源码 + Compose + Nginx/Cloudflare 文档 | 部署到自己的服务器 |
-| `Dreikanterbot-3.1.1-win-x64.zip` | Windows 便携 EXE（WebView2） | 双击即用，首次填服务器地址 |
-| `Dreikanterbot-3.1.1.apk` | Android WebView 客户端（测试签名） | Android 7+ 侧载安装 |
+| `Dreikanterbot-3.2.0-win-x64.zip` | Windows 便携 EXE（WebView2） | 双击即用，首次填服务器地址 |
+| `Dreikanterbot-3.2.0.apk` | Android WebView 客户端（测试签名） | Android 7+ 侧载安装 |
 
 下载页：
 
@@ -718,8 +746,8 @@ GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）会在�
 
 仓库内也放了当前版本客户端（Release 会再次附加）：
 
-- [Windows 便携版](docs/downloads/Dreikanterbot-3.1.1-win-x64.zip)
-- [Android APK](docs/downloads/Dreikanterbot-3.1.1.apk)
+- [Windows 便携版](docs/downloads/Dreikanterbot-3.2.0-win-x64.zip)
+- [Android APK](docs/downloads/Dreikanterbot-3.2.0.apk)
 - [SHA256SUMS](docs/downloads/SHA256SUMS)
 
 ### 10.2 设备建议
@@ -970,7 +998,7 @@ docker compose up -d
 2. **进程崩溃保护窗口**：助手内容每 ~0.75 秒增量写入，强制杀进程最多丢失不足 1 秒的文本；完成/停止/出错时立即写最终状态。
 3. **JWT 无 refresh token**：30 天内有效；登出会黑名单当前 token，改密/重置密码/禁用会通过 `token_version` 让该用户所有旧 token 失效。
 4. **Whisper CPU 推理**：base 模型在 2–4 vCPU 上单路转写约需数秒；首次请求会下载模型。长音频受 `MAX_AUDIO_MB=20` 限制。
-5. **上下文预算**：V3.1 按 token 计算，默认窗口 1M（最高 2M）；超出窗口的早期消息不会进入模型上下文，但数据库仍完整保存。
+5. **上下文预算**：V3.2 按 token 计算，云端默认窗口 1M（最高 2M），本地模型 32K；超出窗口的早期消息不会进入模型上下文，但数据库仍完整保存。
 6. **回收站无自动清理**：软删除会话永久保留，需要时手动写 SQL/管理脚本清理。
 7. **PWA 离线能力**：离线只能打开界面与缓存静态资源；新消息必须联网。Service Worker 不会缓存 API。
 8. **Cloudflare 免费版限速有限**：边缘规则能力随套餐变化，账号级额度以 Redis 为准。

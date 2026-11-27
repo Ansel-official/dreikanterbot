@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import Icon from './Icons'
-import { formatRelativeTime, initialOf, roleLabel, truncate } from '../utils'
+import { formatRelativeTime, initialOf, roleLabel } from '../utils'
 
 export default function Sidebar({
   sessions,
@@ -56,12 +56,6 @@ export default function Sidebar({
     await onRename?.(session, title)
   }
 
-  const quotaText = !quota
-    ? '额度加载中'
-    : quota.limit == null
-      ? '管理员 · 不限量'
-      : `今日 ${quota.used} / ${quota.limit} 次`
-
   return (
     <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="会话列表">
       <div className="sidebar-top">
@@ -71,7 +65,7 @@ export default function Sidebar({
           </div>
           <div className="brand-text">
             <strong>Dreikanterbot</strong>
-            <span>私人工作台 · V3.1.1</span>
+            <span>私人工作台 · V3.2</span>
           </div>
         </div>
         <button className="icon-btn mobile-only" onClick={onClose} aria-label="关闭侧边栏">
@@ -166,13 +160,7 @@ export default function Sidebar({
                       {session.mode === 'reasoner' ? <span className="session-mode-tag">R1</span> : null}
                     </div>
                   )}
-                  <div className="session-preview">
-                    {session.last_message ? truncate(session.last_message, 42) : '暂无消息'}
-                  </div>
-                  <div className="session-meta">
-                    <span>{formatRelativeTime(session.updated_at)}</span>
-                    <span>{session.message_count || 0} 条</span>
-                  </div>
+                  <span className="session-time">{formatRelativeTime(session.updated_at)}</span>
                 </div>
 
                 <div className="session-actions">
@@ -214,22 +202,19 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-footer">
-        <div className="quota-card">
-          <div className="quota-card-head">
-            <span>
-              <Icon name="barChart" size={14} /> 今日额度
-            </span>
-            <span>{quota && quota.limit != null ? `${quota.remaining} 剩余` : ''}</span>
-          </div>
-          {quota && quota.limit != null ? (
-            <div className="quota-track">
-              <div
-                className="quota-fill"
-                style={{ width: `${Math.min(100, (quota.used / quota.limit) * 100)}%` }}
-              />
-            </div>
-          ) : null}
-          <div className="quota-text">{quotaText}</div>
+        <div className="sidebar-actions sidebar-actions-compact">
+          <button className="side-action" onClick={onOpenMemory} title="记忆库">
+            <Icon name="memory" size={17} />
+            <span>记忆库</span>
+          </button>
+          <button className="side-action" onClick={onOpenPlugins} title="插件">
+            <Icon name="plug" size={17} />
+            <span>插件</span>
+          </button>
+          <button className="side-action" onClick={onOpenSettings} title="设置">
+            <Icon name="settings" size={17} />
+            <span>设置</span>
+          </button>
         </div>
 
         <div className="user-card">
@@ -240,47 +225,6 @@ export default function Sidebar({
           </div>
           <button className="icon-btn" onClick={onLogout} title="退出登录" aria-label="退出登录">
             <Icon name="logout" size={17} />
-          </button>
-        </div>
-
-        <div className="sidebar-actions">
-          <button className="side-action" onClick={onOpenAi}>
-            <Icon name="key" size={16} />
-            模型接入
-          </button>
-          <button className="side-action" onClick={onOpenMemory}>
-            <Icon name="memory" size={16} />
-            记忆库
-          </button>
-          <button className="side-action" onClick={onOpenPlugins}>
-            <Icon name="plug" size={16} />
-            插件
-          </button>
-          <button className="side-action" onClick={onOpenImport}>
-            <Icon name="upload" size={16} />
-            继续对话
-          </button>
-          <button className="side-action" onClick={onOpenDevice}>
-            <Icon name="download" size={16} />
-            下载 App
-          </button>
-          <button className="side-action" onClick={onOpenSettings}>
-            <Icon name="settings" size={16} />
-            设置
-          </button>
-          {user?.role === 'admin' ? (
-            <button className="side-action" onClick={onOpenAdmin}>
-              <Icon name="shield" size={16} />
-              管理
-            </button>
-          ) : null}
-          <button
-            className="side-action theme-toggle"
-            onClick={onToggleTheme}
-            title="切换主题"
-          >
-            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} />
-            {theme === 'dark' ? '浅色' : '深色'}
           </button>
         </div>
       </div>
