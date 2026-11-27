@@ -907,6 +907,13 @@ export default function ChatPage({ theme, onToggleTheme }) {
                 <Icon name="dots" size={19} />
               </summary>
               <div className="menu-panel menu-panel-right">
+                <button onClick={() => setSettingsOpen(true)}>
+                  <Icon name="settings" size={15} /> 设置
+                </button>
+                <button onClick={() => setAiOpen(true)}>
+                  <Icon name="key" size={15} /> 模型接入
+                </button>
+                <div className="menu-divider" />
                 <button onClick={() => setMemoryOpen(true)}>
                   <Icon name="memory" size={15} /> 记忆库
                 </button>

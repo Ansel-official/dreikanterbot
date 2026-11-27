@@ -1648,7 +1648,7 @@ h3,
 /* ---------------------------------------------------------------- 响应式 */
 @media (max-width: 780px) {
   .header-optional,
-  .header-actions .connection-badge,
+  .header-actions .conn-badge,
   .header-actions .context-chip,
   .header-actions .key-status-chip,
   .header-actions .quota-chip {
